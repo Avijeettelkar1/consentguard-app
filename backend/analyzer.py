@@ -9,10 +9,10 @@ import re
 import json
 from urllib.parse import urlparse
 import requests
-import anthropic
+from openai import OpenAI
 from tracker_db import is_tracker
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def find_violations(requests_list: list[str]) -> list[dict]:
@@ -88,13 +88,13 @@ Return ONLY valid JSON in this exact format:
   ]
 }}"""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    response = client.chat.completions.create(
+        model="gpt-4o",
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = message.content[0].text.strip()
+    raw = response.choices[0].message.content.strip()
     match = re.search(r"\{.*\}", raw, re.DOTALL)
     parsed = json.loads(match.group()) if match else {"violations": []}
 

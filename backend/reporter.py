@@ -7,10 +7,10 @@ Person 2 owns this file.
 import os
 import re
 import json
-import anthropic
+from openai import OpenAI
 from scanner import run_scan
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 FINE_TIERS = [
     {"max_violations": 2,  "max_fine_pct": "2%",  "small": "€10,000–€50,000",   "medium": "€50,000–€200,000",   "large": "€200,000–€800,000"},
@@ -69,12 +69,12 @@ The letter should:
 
 Return only the letter text, no extra commentary."""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    response = client.chat.completions.create(
+        model="gpt-4o",
         max_tokens=800,
         messages=[{"role": "user", "content": prompt}],
     )
-    return message.content[0].text.strip()
+    return response.choices[0].message.content.strip()
 
 
 def run_verify_scan(url: str, block_domains: list[str]) -> dict:

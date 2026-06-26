@@ -1,6 +1,6 @@
 fastapi
 uvicorn
 daytona-sdk
-anthropic
+openai
 requests
 python-dotenv

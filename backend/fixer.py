@@ -7,9 +7,9 @@ Given a list of undeclared trackers, asks Claude to generate:
 import os
 import re
 import json
-import anthropic
+from openai import OpenAI
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def generate_fixes(
@@ -44,13 +44,13 @@ Return ONLY valid JSON:
   "banner_fix": "1. ...\\n2. ...\\n3. ..."
 }}"""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    response = client.chat.completions.create(
+        model="gpt-4o",
         max_tokens=1500,
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = message.content[0].text.strip()
+    raw = response.choices[0].message.content.strip()
     match = re.search(r"\{.*\}", raw, re.DOTALL)
     if match:
         return json.loads(match.group())
