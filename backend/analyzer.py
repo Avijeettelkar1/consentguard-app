@@ -94,7 +94,7 @@ Return ONLY valid JSON — no markdown, no explanation:
 }}"""
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o-mini",
         max_tokens=2500,
         temperature=0,
         messages=[{"role": "user", "content": prompt}],

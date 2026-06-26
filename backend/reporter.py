@@ -78,7 +78,7 @@ Requirements:
 Return only the letter text. No subject line, no extra commentary."""
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o-mini",
         max_tokens=900,
         temperature=0.3,
         messages=[{"role": "user", "content": prompt}],
