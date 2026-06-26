@@ -1,28 +1,26 @@
-"""
-Person 2 owns this file.
-1. find_violations()   — cross-refs network requests against tracker DB
-2. fetch_cookie_policy() — fetches and extracts text from the site's cookie policy
-3. analyze_violations()  — asks Claude whether each tracker is declared in the policy
-"""
+import json
 import os
 import re
-import json
 from urllib.parse import urlparse
+
 import requests
-import anthropic
+from dotenv import load_dotenv
+
 from tracker_db import is_tracker
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+load_dotenv()
 
 
 def find_violations(requests_list: list[str]) -> list[dict]:
     seen = set()
     violations = []
-    for url in requests_list:
-        domain = urlparse(url).netloc.lower().lstrip("www.")
-        if domain in seen:
+
+    for request_url in requests_list:
+        domain = urlparse(request_url).netloc.lower().lstrip("www.")
+        if not domain or domain in seen:
             continue
         seen.add(domain)
+
         info = is_tracker(domain)
         if info:
             violations.append({
@@ -31,18 +29,25 @@ def find_violations(requests_list: list[str]) -> list[dict]:
                 "company": info.get("company", ""),
                 "data_collected": info["data_collected"],
             })
+
     return violations
 
 
-def fetch_cookie_policy(policy_url: str) -> str:
+def fetch_cookie_policy(policy_url: str | None) -> str:
     if not policy_url:
         return ""
+
     try:
-        resp = requests.get(policy_url, timeout=10)
-        resp.raise_for_status()
-        text = re.sub(r"<[^>]+>", " ", resp.text)
-        text = re.sub(r"\s+", " ", text).strip()
-        return text[:8000]
+        response = requests.get(
+            policy_url,
+            timeout=10,
+            headers={"User-Agent": "ConsentGuard/1.0 compliance scanner"},
+        )
+        response.raise_for_status()
+        text = re.sub(r"<script\b.*?</script>", " ", response.text, flags=re.I | re.S)
+        text = re.sub(r"<style\b.*?</style>", " ", text, flags=re.I | re.S)
+        text = re.sub(r"<[^>]+>", " ", text)
+        return re.sub(r"\s+", " ", text).strip()[:8000]
     except Exception:
         return ""
 
@@ -55,6 +60,19 @@ def analyze_violations(
     if not violations:
         return {"violations": [], "undeclared": [], "declared": []}
 
+    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if api_key:
+        try:
+            return _analyze_with_claude(api_key, violations, policy_text)
+        except Exception:
+            pass
+
+    return _analyze_locally(violations, policy_text, page_html)
+
+
+def _analyze_with_claude(api_key: str, violations: list[dict], policy_text: str) -> dict:
+    import anthropic
+
     tracker_list = "\n".join(
         f"- {v['domain']} ({v['category']}): {v['data_collected']}"
         for v in violations
@@ -66,16 +84,14 @@ A website's cookie banner was clicked "Reject All". Despite this, the following 
 
 {tracker_list}
 
-The website's cookie policy text (may be partial):
+The website's cookie policy text may be partial:
 \"\"\"
 {policy_text[:4000] if policy_text else "(not available)"}
 \"\"\"
 
-For each tracker domain, determine:
-1. Is it explicitly declared in the cookie policy? (true/false)
-2. What is the GDPR legal basis violation if undeclared?
+For each tracker domain, determine whether it is explicitly declared in the cookie policy.
 
-Return ONLY valid JSON in this exact format:
+Return only valid JSON in this exact format:
 {{
   "violations": [
     {{
@@ -83,13 +99,14 @@ Return ONLY valid JSON in this exact format:
       "category": "advertising",
       "data_collected": "...",
       "declared": false,
-      "violation_reason": "Fires after reject, not listed in policy"
+      "violation_reason": "Fires after reject and is not listed in the policy"
     }}
   ]
 }}"""
 
+    client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -97,12 +114,62 @@ Return ONLY valid JSON in this exact format:
     raw = message.content[0].text.strip()
     match = re.search(r"\{.*\}", raw, re.DOTALL)
     parsed = json.loads(match.group()) if match else {"violations": []}
+    return _split_declared(parsed.get("violations", []))
 
-    all_v = parsed.get("violations", [])
-    undeclared = [v for v in all_v if not v.get("declared")]
-    declared = [v for v in all_v if v.get("declared")]
 
-    return {"violations": all_v, "undeclared": undeclared, "declared": declared}
+def _analyze_locally(violations: list[dict], policy_text: str, page_html: str) -> dict:
+    searchable = _normalize_text((policy_text or "") + " " + _strip_html(page_html or ""))
+    analyzed = []
+
+    for violation in violations:
+        domain = violation["domain"]
+        root_domain = _root_domain(domain)
+        company = violation.get("company", "")
+        declared = any(
+            token and token in searchable
+            for token in {
+                domain.lower(),
+                root_domain.lower(),
+                company.lower(),
+                company.lower().replace(" ", ""),
+            }
+        )
+
+        analyzed.append({
+            **violation,
+            "declared": declared,
+            "violation_reason": (
+                "Fires after reject and appears in the available policy/page text"
+                if declared
+                else "Fires after reject and was not found in the available policy/page text"
+            ),
+        })
+
+    return _split_declared(analyzed)
+
+
+def _split_declared(violations: list[dict]) -> dict:
+    undeclared = [v for v in violations if not v.get("declared")]
+    declared = [v for v in violations if v.get("declared")]
+    return {"violations": violations, "undeclared": undeclared, "declared": declared}
+
+
+def _strip_html(html: str) -> str:
+    text = re.sub(r"<script\b.*?</script>", " ", html, flags=re.I | re.S)
+    text = re.sub(r"<style\b.*?</style>", " ", text, flags=re.I | re.S)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return text
+
+
+def _normalize_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text.lower())
+
+
+def _root_domain(domain: str) -> str:
+    parts = domain.split(".")
+    if len(parts) <= 2:
+        return domain
+    return ".".join(parts[-2:])
 
 
 if __name__ == "__main__":
@@ -113,7 +180,6 @@ if __name__ == "__main__":
         "https://bat.bing.com/bat.js",
         "https://static.ads-twitter.com/uwt.js",
     ]
-    violations = find_violations(mock_requests)
-    print(f"Found {len(violations)} tracker violations")
-    analysis = analyze_violations(violations, policy_text="This website uses Google Analytics only.")
-    print(json.dumps(analysis, indent=2))
+    found = find_violations(mock_requests)
+    print(f"Found {len(found)} tracker violations")
+    print(json.dumps(analyze_violations(found, "This website uses Google Analytics only."), indent=2))

@@ -1,279 +1,461 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ConsentGuard — GDPR Cookie Compliance Scanner</title>
-<style>
-  :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --border: #2a2d3a;
-    --accent: #6366f1;
-    --accent-light: #818cf8;
-    --red: #ef4444;
-    --green: #22c55e;
-    --yellow: #f59e0b;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --radius: 10px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
-
-  header { border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 0.75rem; }
-  header svg { color: var(--accent); }
-  header h1 { font-size: 1.25rem; font-weight: 700; }
-  header span { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
-
-  main { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.5rem; }
-
-  .hero { text-align: center; margin-bottom: 2.5rem; }
-  .hero h2 { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
-  .hero p { color: var(--muted); font-size: 1rem; }
-
-  .scan-box { display: flex; gap: 0.75rem; max-width: 620px; margin: 1.5rem auto 0; }
-  .scan-box input {
-    flex: 1; background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 0.75rem 1rem; color: var(--text);
-    font-size: 1rem; outline: none; transition: border-color 0.2s;
-  }
-  .scan-box input:focus { border-color: var(--accent); }
-  .scan-box button {
-    background: var(--accent); color: white; border: none; border-radius: var(--radius);
-    padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
-    white-space: nowrap;
-  }
-  .scan-box button:hover { opacity: 0.85; }
-  .scan-box button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .status { text-align: center; color: var(--muted); font-size: 0.9rem; margin-top: 1rem; min-height: 1.2rem; }
-
-  #results { display: none; }
-
-  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-  @media (max-width: 640px) { .cards { grid-template-columns: repeat(2, 1fr); } }
-
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
-  .card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }
-  .card .value { font-size: 1.75rem; font-weight: 800; }
-  .card .value.red { color: var(--red); }
-  .card .value.green { color: var(--green); }
-  .card .value.yellow { color: var(--yellow); }
-
-  .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.25rem; }
-  .section h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
-  .badge { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 999px; font-weight: 600; }
-  .badge.red { background: rgba(239,68,68,0.15); color: var(--red); }
-  .badge.green { background: rgba(34,197,94,0.15); color: var(--green); }
-  .badge.yellow { background: rgba(245,158,11,0.15); color: var(--yellow); }
-
-  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 0 0.75rem; border-bottom: 1px solid var(--border); }
-  td { padding: 0.75rem 0; border-bottom: 1px solid var(--border); vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
-  .domain { font-family: monospace; font-size: 0.85rem; }
-  .cat { font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(99,102,241,0.15); color: var(--accent-light); }
-
-  .fix-block { background: var(--bg); border-radius: 8px; padding: 1rem; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; color: var(--text); }
-  .fix-block p { margin: 0; }
-
-  .complaint-block { background: var(--bg); border-radius: 8px; padding: 1rem; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; color: var(--text); position: relative; }
-  .copy-btn { position: absolute; top: 0.75rem; right: 0.75rem; background: var(--border); border: none; color: var(--text); padding: 0.3rem 0.65rem; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
-  .copy-btn:hover { background: var(--accent); }
-
-  .exposure-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  @media (max-width: 500px) { .exposure-grid { grid-template-columns: 1fr; } }
-  .exp-item .exp-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
-  .exp-item .exp-value { font-weight: 700; font-size: 0.95rem; }
-  .exp-item .exp-value.danger { color: var(--red); }
-
-  .platform-tag { font-size: 0.8rem; color: var(--accent-light); background: rgba(99,102,241,0.1); padding: 0.2rem 0.6rem; border-radius: 6px; }
-
-  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 0.4rem; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ConsentGuard Test Console</title>
+  <style>
+    :root {
+      --bg: #101418;
+      --panel: #181e24;
+      --panel-2: #202832;
+      --border: #34404d;
+      --text: #edf2f7;
+      --muted: #9aa8b6;
+      --blue: #4f8cff;
+      --red: #ff6b6b;
+      --green: #35c485;
+      --amber: #f4b63f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 system-ui, -apple-system, Segoe UI, sans-serif;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: #121820;
+    }
+    h1 { margin: 0; font-size: 20px; }
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .bar {
+      display: grid;
+      grid-template-columns: 1fr 180px 120px;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    input, button {
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: 11px 12px;
+      font: inherit;
+    }
+    input {
+      background: var(--panel);
+      color: var(--text);
+    }
+    button {
+      background: var(--blue);
+      color: white;
+      border-color: transparent;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: var(--panel-2);
+      border-color: var(--border);
+    }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .status { min-height: 22px; color: var(--muted); margin-bottom: 18px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .card, section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .card { padding: 14px; }
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+      margin-bottom: 5px;
+    }
+    .value { font-size: 22px; font-weight: 800; overflow-wrap: anywhere; }
+    .red { color: var(--red); }
+    .green { color: var(--green); }
+    .amber { color: var(--amber); }
+    .summary {
+      margin-bottom: 16px;
+      padding: 18px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .summary h2 { margin-bottom: 8px; }
+    .summary p { margin: 8px 0; color: var(--text); }
+    .summary .takeaway { color: var(--green); font-weight: 700; }
+    .muted { color: var(--muted); }
+    section {
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: left;
+      padding: 9px 8px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-size: 12px; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+    pre {
+      white-space: pre-wrap;
+      margin: 0;
+      background: #0c1116;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid var(--border);
+    }
+    .hide { display: none; }
+    @media (max-width: 780px) {
+      .bar { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
 </head>
 <body>
+  <header>
+    <h1>ConsentGuard</h1>
+    <button class="secondary" id="healthBtn">Check API</button>
+  </header>
 
-<header>
-  <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-  </svg>
-  <h1>ConsentGuard</h1>
-  <span>GDPR Cookie Compliance Scanner</span>
-</header>
-
-<main>
-  <div class="hero">
-    <h2>Does your site leak after "Reject All"?</h2>
-    <p>We click reject, watch the network, and catch every tracker that fires anyway.</p>
-    <div class="scan-box">
-      <input id="urlInput" type="text" placeholder="Enter website URL (e.g. bbc.com)" />
-      <button id="scanBtn" onclick="startScan()">Scan Now</button>
+  <main>
+    <div class="bar">
+      <input id="urlInput" value="example.com" placeholder="Website URL">
+      <input id="apiInput" value="http://localhost:8000" placeholder="API URL">
+      <button id="scanBtn">Scan</button>
     </div>
-    <p class="status" id="statusMsg"></p>
-  </div>
+    <div class="status" id="status">Start the backend, then scan a URL.</div>
 
-  <div id="results">
-    <!-- Summary cards -->
-    <div class="cards">
-      <div class="card">
-        <div class="label">Consent Platform</div>
-        <div class="value" id="cPlatform" style="font-size:1.1rem">—</div>
+    <div id="results" class="hide">
+      <div class="summary">
+        <h2 id="plainStatus">Scan result</h2>
+        <p id="plainResult"></p>
+        <p id="plainComparison" class="muted"></p>
+        <p id="plainTakeaway" class="takeaway"></p>
       </div>
-      <div class="card">
-        <div class="label">Trackers After Reject</div>
-        <div class="value red" id="cAfter">0</div>
+
+      <div class="grid">
+        <div class="card"><div class="label">Accepted test</div><div class="value" id="accept">-</div></div>
+        <div class="card"><div class="label">Rejected test</div><div class="value" id="reject">-</div></div>
+        <div class="card"><div class="label">Tracking blocked</div><div class="value green" id="blockedEvents">0</div></div>
+        <div class="card"><div class="label">Tracking after reject</div><div class="value red" id="rejectEvents">0</div></div>
+        <div class="card"><div class="label">Confirmed Issues</div><div class="value red" id="violations">0</div></div>
+        <div class="card"><div class="label">Needs Review</div><div class="value amber" id="needsReview">0</div></div>
       </div>
-      <div class="card">
-        <div class="label">Undeclared</div>
-        <div class="value red" id="cUndeclared">0</div>
-      </div>
-      <div class="card">
-        <div class="label">Declared in Policy</div>
-        <div class="value green" id="cDeclared">0</div>
-      </div>
+
+      <section>
+        <h2>What Changed When Cookies Were Accepted?</h2>
+        <pre id="comparison"></pre>
+      </section>
+
+      <section>
+        <h2>Tracking Evidence</h2>
+        <pre id="tagAudit"></pre>
+        <table>
+          <thead>
+            <tr><th>What happened</th><th>Service</th><th>Detail</th><th>Status</th></tr>
+          </thead>
+          <tbody id="tagRows"></tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Items To Review</h2>
+        <table>
+          <thead>
+            <tr><th>Service</th><th>Type</th><th>Status</th><th>Plain explanation</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Cookies After Reject</h2>
+        <table>
+          <thead>
+            <tr><th>Cookie</th><th>Website</th><th>Concern</th><th>Why it matters</th></tr>
+          </thead>
+          <tbody id="cookieRows"></tbody>
+        </table>
+        <p id="cookieNote" style="color:var(--muted);margin:12px 0 0"></p>
+      </section>
+
+      <section>
+        <h2>Recommended Next Steps</h2>
+        <pre id="fixes"></pre>
+      </section>
+
+      <section>
+        <h2>Risk Estimate</h2>
+        <pre id="exposure"></pre>
+      </section>
+
+      <section>
+        <h2>Draft Complaint Text</h2>
+        <pre id="complaint"></pre>
+      </section>
     </div>
+  </main>
 
-    <!-- Violations table -->
-    <div class="section">
-      <h3>
-        Tracker Violations
-        <span class="badge red" id="violBadge">0 found</span>
-      </h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Domain</th>
-            <th>Category</th>
-            <th>Data Collected</th>
-            <th>In Policy?</th>
-          </tr>
-        </thead>
-        <tbody id="violTable"></tbody>
-      </table>
-    </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
 
-    <!-- Fixes -->
-    <div class="section">
-      <h3>Recommended Fixes</h3>
-      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:0.75rem;">Policy update — add to your cookie policy:</p>
-      <div class="fix-block" id="policyFix"></div>
-      <p style="font-size:0.85rem;color:var(--muted);margin:1rem 0 0.75rem;">Consent platform config — steps to fix your banner:</p>
-      <div class="fix-block" id="bannerFix"></div>
-    </div>
-
-    <!-- GDPR Exposure -->
-    <div class="section">
-      <h3>GDPR Exposure Estimate <span class="badge red" id="fineBadge"></span></h3>
-      <div class="exposure-grid" id="exposureGrid"></div>
-    </div>
-
-    <!-- Complaint letter -->
-    <div class="section">
-      <h3>DPA Complaint Letter</h3>
-      <div class="complaint-block">
-        <button class="copy-btn" onclick="copyComplaint()">Copy</button>
-        <div id="complaintText"></div>
-      </div>
-    </div>
-  </div>
-</main>
-
-<script>
-// ── Change this to your Railway backend URL after deploy ──
-const API_URL = "http://localhost:8000";
-
-async function startScan() {
-  const input = document.getElementById("urlInput");
-  const btn = document.getElementById("scanBtn");
-  const status = document.getElementById("statusMsg");
-  const results = document.getElementById("results");
-
-  const url = input.value.trim();
-  if (!url) { status.textContent = "Please enter a URL."; return; }
-
-  btn.disabled = true;
-  results.style.display = "none";
-  status.innerHTML = '<span class="spinner"></span>Launching sandbox and scanning cookies…';
-
-  try {
-    const resp = await fetch(`${API_URL}/scan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+    $("healthBtn").addEventListener("click", async () => {
+      const api = $("apiInput").value.replace(/\/$/, "");
+      setStatus("Checking API...");
+      try {
+        const response = await fetch(`${api}/health`);
+        const data = await response.json();
+        setStatus(`API ready: ${data.mode} mode, verify_scan=${data.verify_scan}`);
+      } catch (error) {
+        setStatus(`API check failed: ${error.message}`);
+      }
     });
-    if (!resp.ok) throw new Error(await resp.text());
-    const data = await resp.json();
-    renderResults(data);
-    status.textContent = "Scan complete.";
-    results.style.display = "block";
-  } catch (err) {
-    status.textContent = "Error: " + err.message;
-  } finally {
-    btn.disabled = false;
-  }
-}
 
-function renderResults(d) {
-  const scan = d.scan || {};
-  document.getElementById("cPlatform").innerHTML =
-    scan.consent_platform
-      ? `<span class="platform-tag">${scan.consent_platform}</span>`
-      : '<span style="color:var(--muted)">Unknown</span>';
-  document.getElementById("cAfter").textContent = scan.after_count ?? 0;
-  document.getElementById("cUndeclared").textContent = (d.undeclared || []).length;
-  document.getElementById("cDeclared").textContent = (d.declared || []).length;
+    $("scanBtn").addEventListener("click", scan);
+    $("urlInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") scan();
+    });
 
-  // Violations table
-  const violations = d.violations || [];
-  document.getElementById("violBadge").textContent = violations.length + " found";
-  const tbody = document.getElementById("violTable");
-  tbody.innerHTML = violations.map(v => `
-    <tr>
-      <td class="domain">${v.domain}</td>
-      <td><span class="cat">${v.category}</span></td>
-      <td style="color:var(--muted);font-size:0.8rem">${v.data_collected}</td>
-      <td>
-        ${v.declared
-          ? '<span class="badge green">✓ Declared</span>'
-          : '<span class="badge red">✗ Missing</span>'}
-      </td>
-    </tr>
-  `).join("");
+    async function scan() {
+      const api = $("apiInput").value.replace(/\/$/, "");
+      const url = $("urlInput").value.trim();
+      if (!url) return setStatus("Enter a URL first.");
 
-  // Fixes
-  const fixes = d.fixes || {};
-  document.getElementById("policyFix").innerHTML = fixes.policy_fix || "—";
-  document.getElementById("bannerFix").textContent = fixes.banner_fix || "—";
+      $("scanBtn").disabled = true;
+      $("results").classList.add("hide");
+      setStatus("Scanning...");
 
-  // Exposure
-  const exp = d.exposure || {};
-  document.getElementById("fineBadge").textContent = exp.max_fine_percent || "";
-  document.getElementById("exposureGrid").innerHTML = `
-    <div class="exp-item"><div class="exp-label">Small business estimate</div><div class="exp-value danger">${exp.estimated_range_small || "—"}</div></div>
-    <div class="exp-item"><div class="exp-label">Medium business estimate</div><div class="exp-value danger">${exp.estimated_range_medium || "—"}</div></div>
-    <div class="exp-item"><div class="exp-label">Large business estimate</div><div class="exp-value danger">${exp.estimated_range_large || "—"}</div></div>
-    <div class="exp-item"><div class="exp-label">Relevant Authority</div><div class="exp-value">${exp.relevant_authority || "—"}</div></div>
-  `;
+      try {
+        const response = await fetch(`${api}/scan`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url })
+        });
+        if (!response.ok) throw new Error(await response.text());
+        render(await response.json());
+        setStatus("Scan complete.");
+      } catch (error) {
+        setStatus(`Scan failed: ${error.message}`);
+      } finally {
+        $("scanBtn").disabled = false;
+      }
+    }
 
-  // Complaint
-  document.getElementById("complaintText").textContent = d.complaint || "—";
-}
+    function render(data) {
+      const scan = data.scan || {};
+      const plain = data.plain_summary || {};
+      const counts = plain.plain_counts || {};
 
-function copyComplaint() {
-  const text = document.getElementById("complaintText").textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.querySelector(".copy-btn");
-    btn.textContent = "Copied!";
-    setTimeout(() => btn.textContent = "Copy", 2000);
-  });
-}
+      $("plainStatus").textContent = plain.status || "Scan result";
+      $("plainResult").textContent = plain.result || "";
+      $("plainComparison").textContent = plain.comparison || "";
+      $("plainTakeaway").textContent = plain.user_takeaway || "";
 
-document.getElementById("urlInput").addEventListener("keydown", e => {
-  if (e.key === "Enter") startScan();
-});
-</script>
+      $("accept").textContent = scan.clicked_accept ? "Yes" : "No";
+      $("accept").className = `value ${scan.clicked_accept ? "green" : "amber"}`;
+      $("reject").textContent = scan.clicked_reject ? "Yes" : "No";
+      $("reject").className = `value ${scan.clicked_reject ? "green" : "amber"}`;
+      $("blockedEvents").textContent = counts.tracking_events_blocked_by_reject ?? 0;
+      $("rejectEvents").textContent = counts.tracking_events_after_reject ?? 0;
+      $("violations").textContent = scan.violation_count ?? (data.undeclared || []).length;
+      $("needsReview").textContent = scan.needs_review_count ?? (data.needs_review || []).length;
+
+      const comparison = data.comparison || {};
+      $("comparison").textContent = [
+        `Extra activity when cookies were accepted: ${comparison.accept_only_request_count ?? 0} request(s)`,
+        `Activity seen only after rejection: ${comparison.reject_only_request_count ?? 0} request(s)`,
+        `Activity seen in both tests: ${comparison.common_request_count ?? 0} request(s)`,
+        "",
+        "Services that appeared only after accepting cookies:",
+        formatDomains(comparison.accept_only_domains || []),
+        "",
+        "Services that appeared only after rejecting cookies:",
+        formatDomains(comparison.reject_only_domains || []),
+        "",
+        "Cookies created only after accepting:",
+        formatList(comparison.accept_only_cookies || []),
+        "",
+        "Cookies created only after rejecting:",
+        formatList(comparison.reject_only_cookies || []),
+      ].join("\n");
+
+      const tagAudit = data.tag_audit || {};
+      $("tagAudit").textContent = [
+        plainLanguageVerdict(tagAudit),
+        "",
+        `Tracking events seen after accepting: ${tagAudit.accept_payload_count ?? 0}`,
+        `Tracking events seen after rejecting: ${tagAudit.reject_payload_count ?? 0}`,
+        "",
+        "Plain English: loading a tag manager is like opening a toolbox. The real concern is whether tools inside it send advertising or analytics events after the user says no."
+      ].join("\n");
+
+      const tagRows = [
+        ...(tagAudit.still_firing_after_reject || []).map((item) => ({ ...item, bucket: "after reject" })),
+        ...(tagAudit.loader_evidence_after_reject || []).map((item) => ({ ...item, bucket: "loader after reject" })),
+        ...(tagAudit.blocked_by_reject || []).slice(0, 10).map((item) => ({ ...item, bucket: "blocked by reject" })),
+      ];
+      $("tagRows").innerHTML = tagRows.map((item) => `
+        <tr>
+          <td>${escapeHtml(humanBucket(item.bucket))}</td>
+          <td><code>${escapeHtml(item.domain || "")}</code></td>
+          <td>${escapeHtml(humanTagDetail(item))}</td>
+          <td>${escapeHtml(humanTagStatus(item.bucket))}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="4">No tag-level evidence detected.</td></tr>`;
+
+      $("rows").innerHTML = (data.violations || []).map((item) => `
+        <tr>
+          <td><code>${escapeHtml(item.domain || "")}</code></td>
+          <td>${escapeHtml(humanCategory(item.category || ""))}</td>
+          <td class="${item.needs_review ? "amber" : item.declared ? "green" : "red"}">${escapeHtml(humanFindingStatus(item))}</td>
+          <td>${escapeHtml(item.violation_reason || item.data_collected || "")}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="4">No items need review.</td></tr>`;
+
+      const cookieInfo = data.cookie_transparency || {};
+      const riskyCookies = cookieInfo.risky_after_reject || [];
+      $("cookieRows").innerHTML = riskyCookies.map((cookie) => `
+        <tr>
+          <td><code>${escapeHtml(cookie.name || "")}</code></td>
+          <td><code>${escapeHtml(cookie.domain || "")}</code></td>
+          <td class="${cookie.severity === "high" ? "red" : "amber"}">${escapeHtml(humanSeverity(cookie.severity || ""))}</td>
+          <td>${escapeHtml(cookie.reason || "")}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="4">No concerning cookies were detected after rejection.</td></tr>`;
+      $("cookieNote").textContent = cookieInfo.note || "";
+
+      const fixes = data.fixes || {};
+      $("fixes").textContent = [
+        stripHtml(fixes.policy_fix || "No policy fix needed."),
+        "",
+        fixes.banner_fix || "No banner fix needed."
+      ].join("\n");
+      $("exposure").textContent = JSON.stringify(data.exposure || {}, null, 2);
+      $("complaint").textContent = data.complaint || "";
+      $("results").classList.remove("hide");
+    }
+
+    function setStatus(message) {
+      $("status").textContent = message;
+    }
+
+    function stripHtml(value) {
+      const div = document.createElement("div");
+      div.innerHTML = value;
+      return div.textContent || div.innerText || "";
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[char]));
+    }
+
+    function formatDomains(domains) {
+      if (!domains.length) return "- none";
+      return domains.map((item) => `- ${item.domain} (${item.count})`).join("\n");
+    }
+
+    function formatList(values) {
+      if (!values.length) return "- none";
+      return values.slice(0, 30).map((value) => `- ${value}`).join("\n");
+    }
+
+    function formatListInline(values) {
+      if (!values.length) return "none";
+      return values.join(", ");
+    }
+
+    function plainLanguageVerdict(audit) {
+      switch (audit.verdict) {
+        case "non_essential_payloads_after_reject":
+          return "Problem found: advertising or analytics events were still sent after rejecting cookies.";
+        case "gtm_loader_after_reject_only":
+          return "Review recommended: a tag manager still loaded after rejection, but it did not send advertising or analytics events in this scan.";
+        case "no_tracking_payloads_after_reject":
+          return "Looks clean: no advertising or analytics events were seen after rejection.";
+        case "consent_controls_not_clicked":
+          return "Inconclusive: the scanner could not click both cookie choices.";
+        default:
+          return audit.summary || "No plain-language verdict available.";
+      }
+    }
+
+    function humanBucket(bucket) {
+      return {
+        "after reject": "Still sent after Reject",
+        "loader after reject": "Loaded after Reject",
+        "blocked by reject": "Blocked by Reject"
+      }[bucket] || bucket || "Observed";
+    }
+
+    function humanTagStatus(bucket) {
+      return {
+        "after reject": "Potential problem",
+        "loader after reject": "Review only",
+        "blocked by reject": "Good"
+      }[bucket] || "Observed";
+    }
+
+    function humanTagDetail(item) {
+      if (item.event_name) return `${item.event_name}${item.target_id ? " / " + item.target_id : ""}`;
+      if (item.container_id) return `Tag manager ${item.container_id}`;
+      if (item.target_id) return item.target_id;
+      return "-";
+    }
+
+    function humanCategory(category) {
+      return {
+        analytics: "Analytics",
+        advertising: "Advertising",
+        content: "Website content",
+        social: "Social media",
+        disconnect: "Tracking"
+      }[category] || category || "Other";
+    }
+
+    function humanFindingStatus(item) {
+      if (item.needs_review) return "Needs review";
+      if (item.declared) return "Disclosed";
+      return "Possible issue";
+    }
+
+    function humanSeverity(severity) {
+      return {
+        high: "High concern",
+        medium: "Medium concern",
+        low: "Low concern"
+      }[severity] || severity || "Review";
+    }
+  </script>
 </body>
 </html>
