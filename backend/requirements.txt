@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+daytona-sdk
+anthropic
+requests
+python-dotenv
