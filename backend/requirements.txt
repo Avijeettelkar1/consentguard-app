@@ -1,6 +1,7 @@
 fastapi
-uvicorn
+uvicorn[standard]
 daytona-sdk
 openai
 requests
 python-dotenv
+playwright

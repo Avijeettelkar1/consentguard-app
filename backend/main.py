@@ -56,13 +56,13 @@ async def scan_endpoint(req: ScanRequest):
         return _mock_response(url)
 
     try:
-        scan_data = run_scan(url)
+        scan_data = await run_scan(url)
         violations = find_violations(scan_data["after"])
         policy_text = fetch_cookie_policy(scan_data.get("cookie_policy_url", ""))
         analysis = analyze_violations(violations, policy_text, scan_data.get("page_html_for_fallback", ""))
         fixes = generate_fixes(analysis["undeclared"], scan_data.get("consent_platform", "unknown"), url)
         block_domains = [t["domain"] for t in analysis["undeclared"]]
-        verify_result = run_verify_scan(url, block_domains)
+        verify_result = await run_verify_scan(url, block_domains)
         exposure = calculate_exposure(len(analysis["undeclared"]))
         complaint = generate_complaint(url, analysis["undeclared"], exposure)
 

@@ -3,277 +3,843 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ConsentGuard — GDPR Cookie Compliance Scanner</title>
+<title>ConsentGuard — Cookie Consent Compliance Scanner</title>
 <style>
-  :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --border: #2a2d3a;
-    --accent: #6366f1;
-    --accent-light: #818cf8;
-    --red: #ef4444;
-    --green: #22c55e;
-    --yellow: #f59e0b;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --radius: 10px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 
-  header { border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 0.75rem; }
-  header svg { color: var(--accent); }
-  header h1 { font-size: 1.25rem; font-weight: 700; }
-  header span { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
+:root {
+  --bg: #080809;
+  --bg2: #0e0e10;
+  --surface: #111113;
+  --surface2: #161618;
+  --border: #1f1f23;
+  --border2: #2a2a30;
+  --accent: #7c3aed;
+  --accent2: #6d28d9;
+  --accent-glow: rgba(124,58,237,0.15);
+  --blue: #2563eb;
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.1);
+  --green: #22c55e;
+  --green-dim: rgba(34,197,94,0.1);
+  --yellow: #f59e0b;
+  --text: #fafafa;
+  --text2: #a1a1aa;
+  --text3: #52525b;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', -apple-system, sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
 
-  main { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
 
-  .hero { text-align: center; margin-bottom: 2.5rem; }
-  .hero h2 { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
-  .hero p { color: var(--muted); font-size: 1rem; }
+/* ── Noise texture overlay ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
 
-  .scan-box { display: flex; gap: 0.75rem; max-width: 620px; margin: 1.5rem auto 0; }
-  .scan-box input {
-    flex: 1; background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 0.75rem 1rem; color: var(--text);
-    font-size: 1rem; outline: none; transition: border-color 0.2s;
-  }
-  .scan-box input:focus { border-color: var(--accent); }
-  .scan-box button {
-    background: var(--accent); color: white; border: none; border-radius: var(--radius);
-    padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
-    white-space: nowrap;
-  }
-  .scan-box button:hover { opacity: 0.85; }
-  .scan-box button:disabled { opacity: 0.5; cursor: not-allowed; }
+/* ── Gradient grid background ── */
+.grid-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
 
-  .status { text-align: center; color: var(--muted); font-size: 0.9rem; margin-top: 1rem; min-height: 1.2rem; }
+/* ── Nav ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2rem; height: 60px;
+  background: rgba(8,8,9,0.8);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-logo { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; font-size: 1rem; letter-spacing: -0.02em; }
+.nav-logo svg { color: var(--accent); }
+.nav-badge { font-size: 0.65rem; background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(124,58,237,0.3); border-radius: 4px; padding: 0.15rem 0.4rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.nav-links { display: flex; align-items: center; gap: 2rem; }
+.nav-links a { color: var(--text2); text-decoration: none; font-size: 0.875rem; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-cta { background: var(--accent); color: white; border: none; padding: 0.45rem 1rem; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.nav-cta:hover { background: var(--accent2); }
 
-  #results { display: none; }
+/* ── HERO ── */
+#hero {
+  position: relative; min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 8rem 1.5rem 4rem; text-align: center; overflow: hidden;
+}
+.hero-glow {
+  position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%);
+  width: 800px; height: 400px;
+  background: radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 999px; padding: 0.35rem 0.85rem;
+  font-size: 0.75rem; color: var(--text2); font-weight: 500;
+  margin-bottom: 1.75rem; position: relative;
+}
+.hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse-dot 2s ease-in-out infinite; }
+@keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
 
-  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-  @media (max-width: 640px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+.hero-title {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 900; letter-spacing: -0.04em; line-height: 1.05;
+  margin-bottom: 1.25rem; position: relative;
+}
+.hero-title .gradient-text {
+  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 40%, #2563eb 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.hero-subtitle {
+  font-size: 1.1rem; color: var(--text2); max-width: 560px;
+  line-height: 1.7; margin-bottom: 2.5rem;
+}
 
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
-  .card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }
-  .card .value { font-size: 1.75rem; font-weight: 800; }
-  .card .value.red { color: var(--red); }
-  .card .value.green { color: var(--green); }
-  .card .value.yellow { color: var(--yellow); }
+/* ── Scan Input ── */
+.scan-wrapper {
+  width: 100%; max-width: 640px; position: relative; margin-bottom: 1rem;
+}
+.scan-form {
+  display: flex; gap: 0; background: var(--surface);
+  border: 1px solid var(--border2); border-radius: var(--radius);
+  padding: 0.35rem; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.scan-form:focus-within {
+  border-color: rgba(124,58,237,0.5);
+  box-shadow: 0 0 0 4px rgba(124,58,237,0.08);
+}
+.scan-prefix {
+  display: flex; align-items: center; padding: 0 0.75rem;
+  color: var(--text3); font-size: 0.875rem; font-family: var(--mono);
+  border-right: 1px solid var(--border); white-space: nowrap;
+}
+#urlInput {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 0.95rem; padding: 0.65rem 0.85rem;
+  font-family: var(--mono);
+}
+#urlInput::placeholder { color: var(--text3); }
+#scanBtn {
+  background: var(--accent); color: white; border: none;
+  border-radius: var(--radius-sm); padding: 0.65rem 1.5rem;
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 0.5rem;
+  transition: background 0.2s, transform 0.1s; white-space: nowrap;
+  font-family: var(--sans);
+}
+#scanBtn:hover { background: var(--accent2); }
+#scanBtn:active { transform: scale(0.98); }
+#scanBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.scan-hint { font-size: 0.75rem; color: var(--text3); }
+.scan-hint span { color: var(--text2); }
 
-  .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.25rem; }
-  .section h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
-  .badge { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 999px; font-weight: 600; }
-  .badge.red { background: rgba(239,68,68,0.15); color: var(--red); }
-  .badge.green { background: rgba(34,197,94,0.15); color: var(--green); }
-  .badge.yellow { background: rgba(245,158,11,0.15); color: var(--yellow); }
+/* ── How it works (pre-scan) ── */
+#howItWorks { padding: 5rem 1.5rem; position: relative; }
+.section-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem; }
+.section-title { font-size: clamp(1.8rem,3vw,2.5rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.75rem; }
+.section-sub { color: var(--text2); font-size: 1rem; line-height: 1.6; max-width: 520px; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 0 0.75rem; border-bottom: 1px solid var(--border); }
-  td { padding: 0.75rem 0; border-bottom: 1px solid var(--border); vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
-  .domain { font-family: monospace; font-size: 0.85rem; }
-  .cat { font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(99,102,241,0.15); color: var(--accent-light); }
+.steps-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+  background: var(--border); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; margin-top: 3rem;
+}
+@media (max-width: 768px) { .steps-grid { grid-template-columns: 1fr; } }
 
-  .fix-block { background: var(--bg); border-radius: 8px; padding: 1rem; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; color: var(--text); }
-  .fix-block p { margin: 0; }
+.step-card {
+  background: var(--surface); padding: 1.75rem;
+  transition: background 0.2s;
+}
+.step-card:hover { background: var(--surface2); }
+.step-num { font-size: 0.7rem; font-weight: 700; color: var(--text3); letter-spacing: 0.1em; margin-bottom: 1rem; font-family: var(--mono); }
+.step-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--accent-glow); border: 1px solid rgba(124,58,237,0.2); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+.step-icon svg { color: var(--accent); }
+.step-card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.4rem; letter-spacing: -0.01em; }
+.step-card p { font-size: 0.8rem; color: var(--text2); line-height: 1.6; }
 
-  .complaint-block { background: var(--bg); border-radius: 8px; padding: 1rem; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; color: var(--text); position: relative; }
-  .copy-btn { position: absolute; top: 0.75rem; right: 0.75rem; background: var(--border); border: none; color: var(--text); padding: 0.3rem 0.65rem; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
-  .copy-btn:hover { background: var(--accent); }
+/* ── Stats strip ── */
+.stats-strip {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 1px;
+  background: var(--border); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  margin: 0 auto;
+}
+@media (max-width: 640px) { .stats-strip { grid-template-columns: repeat(2,1fr); } }
+.stat-item { background: var(--bg2); padding: 1.5rem 2rem; }
+.stat-value { font-size: 1.75rem; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 0.2rem; }
+.stat-label { font-size: 0.75rem; color: var(--text2); }
 
-  .exposure-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  @media (max-width: 500px) { .exposure-grid { grid-template-columns: 1fr; } }
-  .exp-item .exp-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
-  .exp-item .exp-value { font-weight: 700; font-size: 0.95rem; }
-  .exp-item .exp-value.danger { color: var(--red); }
+/* ── SCANNING STATE ── */
+#scanning { display: none; padding: 5rem 1.5rem; }
+.scanning-inner { max-width: 720px; margin: 0 auto; }
+.scanning-header { margin-bottom: 2rem; }
+.scanning-header h2 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.35rem; }
+.scanning-header p { color: var(--text2); font-size: 0.875rem; }
+.scanning-url { font-family: var(--mono); color: var(--accent); font-size: 0.875rem; }
 
-  .platform-tag { font-size: 0.8rem; color: var(--accent-light); background: rgba(99,102,241,0.1); padding: 0.2rem 0.6rem; border-radius: 6px; }
+.terminal {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius); overflow: hidden;
+}
+.terminal-bar {
+  padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.term-dot { width: 10px; height: 10px; border-radius: 50%; }
+.term-dot.r { background: #ff5f57; } .term-dot.y { background: #febc2e; } .term-dot.g { background: #28c840; }
+.terminal-title { margin-left: auto; font-size: 0.7rem; color: var(--text3); font-family: var(--mono); }
+.terminal-body { padding: 1.25rem; min-height: 280px; }
 
-  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 0.4rem; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+.log-line {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  font-family: var(--mono); font-size: 0.8rem; line-height: 1.6;
+  padding: 0.15rem 0; opacity: 0;
+  animation: fadeInLine 0.3s ease forwards;
+}
+@keyframes fadeInLine { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform:none; } }
+.log-time { color: var(--text3); min-width: 48px; }
+.log-icon { min-width: 16px; text-align: center; }
+.log-text { color: var(--text2); }
+.log-text .hl { color: var(--text); }
+.log-text .hl-green { color: var(--green); }
+.log-text .hl-red { color: var(--red); }
+.log-text .hl-yellow { color: var(--yellow); }
+.log-text .hl-purple { color: #a78bfa; }
+
+.cursor { display: inline-block; width: 7px; height: 14px; background: var(--accent); border-radius: 1px; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 2px; }
+@keyframes blink { 50% { opacity:0; } }
+
+.progress-bar-wrap { margin-top: 1.5rem; }
+.progress-bar-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text2); margin-bottom: 0.5rem; }
+.progress-bar-track { height: 3px; background: var(--border2); border-radius: 999px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--blue)); border-radius: 999px; width: 0%; transition: width 0.8s ease; }
+
+.phase-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.75rem; margin-top: 1.5rem; }
+@media (max-width: 640px) { .phase-cards { grid-template-columns: 1fr; } }
+.phase-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; }
+.phase-card .phase-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 600; margin-bottom: 0.4rem; }
+.phase-card .phase-val { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; font-family: var(--mono); }
+.phase-card .phase-val.pending { color: var(--text3); }
+.phase-card .phase-val.active { color: var(--yellow); }
+.phase-card .phase-val.done { color: var(--green); }
+.phase-card .phase-val.bad { color: var(--red); }
+
+/* ── RESULTS ── */
+#results { display: none; padding: 5rem 1.5rem; }
+.results-inner { max-width: 900px; margin: 0 auto; }
+
+.verdict-banner {
+  border-radius: var(--radius); padding: 2rem 2.5rem;
+  margin-bottom: 2rem; border: 1px solid;
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.verdict-banner.fail { background: rgba(239,68,68,0.05); border-color: rgba(239,68,68,0.2); }
+.verdict-banner.pass { background: rgba(34,197,94,0.05); border-color: rgba(34,197,94,0.2); }
+.verdict-left h2 { font-size: 1.75rem; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 0.35rem; }
+.verdict-left p { color: var(--text2); font-size: 0.9rem; }
+.verdict-score { text-align: right; }
+.verdict-score .score-num { font-size: 3.5rem; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
+.verdict-score .score-num.red { color: var(--red); }
+.verdict-score .score-num.green { color: var(--green); }
+.verdict-score .score-label { font-size: 0.75rem; color: var(--text2); margin-top: 0.25rem; }
+
+.metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 2rem; }
+@media (max-width: 640px) { .metrics { grid-template-columns: repeat(2,1fr); } }
+.metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+.metric .m-label { font-size: 0.7rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 0.5rem; }
+.metric .m-val { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+.metric .m-val.red { color: var(--red); }
+.metric .m-val.green { color: var(--green); }
+.metric .m-platform { font-size: 0.75rem; color: var(--accent); background: var(--accent-glow); border: 1px solid rgba(124,58,237,0.2); border-radius: 4px; padding: 0.2rem 0.5rem; display: inline-block; font-family: var(--mono); }
+
+/* ── Section blocks ── */
+.block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1.25rem; overflow: hidden; }
+.block-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.block-header h3 { font-size: 0.9rem; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.5rem; }
+.block-body { padding: 1.5rem; }
+
+.chip { font-size: 0.65rem; padding: 0.2rem 0.55rem; border-radius: 999px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.chip.red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+.chip.green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+.chip.purple { background: var(--accent-glow); color: #a78bfa; border: 1px solid rgba(124,58,237,0.2); }
+
+table { width: 100%; border-collapse: collapse; }
+thead th { text-align: left; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 700; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+tbody td { padding: 0.875rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+.td-domain { font-family: var(--mono); font-size: 0.8rem; color: var(--text); }
+.td-cat { font-size: 0.7rem; background: var(--bg2); color: var(--text2); padding: 0.15rem 0.5rem; border-radius: 4px; border: 1px solid var(--border2); }
+.td-desc { color: var(--text2); font-size: 0.8rem; max-width: 220px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+.tab-btn { padding: 0.75rem 1.25rem; font-size: 0.8rem; font-weight: 600; color: var(--text3); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.2s, border-color 0.2s; font-family: var(--sans); }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+.tab-panel { display: none; padding: 1.25rem; }
+.tab-panel.active { display: block; }
+.code-block { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1.25rem; font-family: var(--mono); font-size: 0.8rem; line-height: 1.7; color: var(--text2); white-space: pre-wrap; word-break: break-word; }
+.code-block .tag { color: #7dd3fc; }
+.code-block .attr { color: #a78bfa; }
+.code-block .val { color: #86efac; }
+.code-block .comment { color: var(--text3); }
+
+/* Fine exposure */
+.fine-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; }
+@media (max-width: 500px) { .fine-grid { grid-template-columns: 1fr; } }
+.fine-item { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1.1rem; }
+.fine-item .fi-label { font-size: 0.7rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; margin-bottom: 0.35rem; }
+.fine-item .fi-val { font-size: 1rem; font-weight: 800; letter-spacing: -0.02em; }
+.fine-item .fi-val.danger { color: var(--red); }
+.fine-max { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-sm); padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.75rem; }
+.fine-max svg { color: var(--red); flex-shrink: 0; }
+.fine-max p { font-size: 0.85rem; color: var(--text2); }
+.fine-max strong { color: var(--red); }
+
+/* Complaint */
+.complaint-box { position: relative; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1.25rem; font-family: var(--mono); font-size: 0.78rem; line-height: 1.8; color: var(--text2); white-space: pre-wrap; max-height: 320px; overflow-y: auto; }
+.copy-btn { position: sticky; float: right; top: 0; background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer; font-size: 0.7rem; font-weight: 600; font-family: var(--sans); transition: background 0.2s, color 0.2s; }
+.copy-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* Verify strip */
+.verify-strip { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; border-radius: var(--radius-sm); font-size: 0.85rem; }
+.verify-strip.clean { background: var(--green-dim); border: 1px solid rgba(34,197,94,0.2); color: var(--green); }
+.verify-strip.dirty { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.2); color: var(--red); }
+
+/* ── Animations ── */
+.fade-up { opacity: 0; transform: translateY(20px); animation: fadeUp 0.6s ease forwards; }
+@keyframes fadeUp { to { opacity: 1; transform: none; } }
+.delay-1 { animation-delay: 0.1s; } .delay-2 { animation-delay: 0.2s; } .delay-3 { animation-delay: 0.3s; }
+
+/* ── Footer ── */
+footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; color: var(--text3); font-size: 0.8rem; }
+footer a { color: var(--text2); text-decoration: none; }
 </style>
 </head>
 <body>
 
-<header>
-  <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-  </svg>
-  <h1>ConsentGuard</h1>
-  <span>GDPR Cookie Compliance Scanner</span>
-</header>
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    ConsentGuard
+    <span class="nav-badge">Beta</span>
+  </div>
+  <div class="nav-links">
+    <a href="#howItWorks">How it works</a>
+    <a href="https://github.com/Avijeettelkar1/consentguard" target="_blank">GitHub</a>
+  </div>
+  <button class="nav-cta" onclick="document.getElementById('urlInput').focus(); window.scrollTo({top:0,behavior:'smooth'})">Try it free</button>
+</nav>
 
-<main>
-  <div class="hero">
-    <h2>Does your site leak after "Reject All"?</h2>
-    <p>We click reject, watch the network, and catch every tracker that fires anyway.</p>
-    <div class="scan-box">
-      <input id="urlInput" type="text" placeholder="Enter website URL (e.g. bbc.com)" />
-      <button id="scanBtn" onclick="startScan()">Scan Now</button>
-    </div>
-    <p class="status" id="statusMsg"></p>
+<!-- HERO -->
+<section id="hero">
+  <div class="grid-bg"></div>
+  <div class="hero-glow"></div>
+
+  <div class="hero-eyebrow fade-up">
+    <span class="dot"></span>
+    GDPR Compliance · Live Scanner · Zero API Key Required
   </div>
 
-  <div id="results">
-    <!-- Summary cards -->
-    <div class="cards">
-      <div class="card">
-        <div class="label">Consent Platform</div>
-        <div class="value" id="cPlatform" style="font-size:1.1rem">—</div>
+  <h1 class="hero-title fade-up delay-1">
+    Your cookie banner is<br>
+    <span class="gradient-text">lying to your users.</span>
+  </h1>
+
+  <p class="hero-subtitle fade-up delay-2">
+    Most websites claim to respect "Reject All" — but keep firing ad trackers anyway.
+    ConsentGuard proves it in 30 seconds with a full legal report.
+  </p>
+
+  <div class="scan-wrapper fade-up delay-3">
+    <div class="scan-form">
+      <span class="scan-prefix">https://</span>
+      <input id="urlInput" type="text" placeholder="yourwebsite.com" autocomplete="off" spellcheck="false" />
+      <button id="scanBtn" onclick="startScan()">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Scan Now
+      </button>
+    </div>
+    <p class="scan-hint" style="margin-top:0.6rem">Try <span>bbc.com</span>, <span>cnn.com</span>, or paste any URL · No sign-up needed</p>
+  </div>
+</section>
+
+<!-- STATS STRIP -->
+<div class="stats-strip">
+  <div class="stat-item"><div class="stat-value" style="color:var(--accent)">6,324</div><div class="stat-label">Tracker domains in database</div></div>
+  <div class="stat-item"><div class="stat-value" style="color:var(--red)">~73%</div><div class="stat-label">Sites fail after "Reject All"</div></div>
+  <div class="stat-item"><div class="stat-value">Art. 7</div><div class="stat-label">GDPR violation we detect</div></div>
+  <div class="stat-item"><div class="stat-value" style="color:var(--yellow)">€20M</div><div class="stat-label">Max fine under GDPR Art. 83</div></div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section id="howItWorks" style="max-width:1100px;margin:0 auto;">
+  <div style="padding:5rem 2rem 2rem">
+    <div class="section-label">The process</div>
+    <h2 class="section-title">What happens when you hit Scan</h2>
+    <p class="section-sub">We run a full automated audit inside an isolated browser sandbox — no plugins, no extensions, no cache.</p>
+  </div>
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">STEP 01</div>
+      <div class="step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+      <h4>Launch Isolated Sandbox</h4>
+      <p>We spin up a clean Daytona browser environment with Playwright. No cookies, no history — a fresh session every time.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">STEP 02</div>
+      <div class="step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+      <h4>Record All Network Traffic</h4>
+      <p>Before touching the cookie banner, we capture every network request the page makes. This is the "before" baseline.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">STEP 03</div>
+      <div class="step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></div>
+      <h4>Click "Reject All"</h4>
+      <p>We auto-detect and click the reject button across 6 major consent platforms — OneTrust, Cookiebot, TrustArc, Didomi, and more.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">STEP 04</div>
+      <div class="step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+      <h4>Watch What Still Fires</h4>
+      <p>After rejection we reload and intercept all traffic again. Any tracker that fires after "Reject All" is a GDPR violation.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">STEP 05</div>
+      <div class="step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <h4>Cross-Reference Tracker DB</h4>
+      <p>Each domain is checked against the Disconnect.me database of 6,324 known trackers — categorised by type and company.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">STEP 06</div>
+      <div class="step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+      <h4>Generate Full Legal Report</h4>
+      <p>We check if each tracker is disclosed in the cookie policy, calculate the GDPR fine exposure, and draft a ready-to-send DPA complaint.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SCANNING STATE -->
+<section id="scanning" style="padding-top:8rem">
+  <div class="scanning-inner">
+    <div class="scanning-header">
+      <h2>Running compliance scan</h2>
+      <p>Scanning <span class="scanning-url" id="scanningUrl"></span></p>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="term-dot r"></span>
+        <span class="term-dot y"></span>
+        <span class="term-dot g"></span>
+        <span class="terminal-title">consentguard — scanner</span>
       </div>
-      <div class="card">
-        <div class="label">Trackers After Reject</div>
-        <div class="value red" id="cAfter">0</div>
-      </div>
-      <div class="card">
-        <div class="label">Undeclared</div>
-        <div class="value red" id="cUndeclared">0</div>
-      </div>
-      <div class="card">
-        <div class="label">Declared in Policy</div>
-        <div class="value green" id="cDeclared">0</div>
+      <div class="terminal-body" id="terminalBody">
+        <div class="log-line" style="opacity:1">
+          <span class="log-time">00:00</span>
+          <span class="log-icon">▶</span>
+          <span class="log-text">ConsentGuard scanner initialising<span class="cursor"></span></span>
+        </div>
       </div>
     </div>
 
-    <!-- Violations table -->
-    <div class="section">
-      <h3>
-        Tracker Violations
-        <span class="badge red" id="violBadge">0 found</span>
-      </h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Domain</th>
-            <th>Category</th>
-            <th>Data Collected</th>
-            <th>In Policy?</th>
-          </tr>
-        </thead>
-        <tbody id="violTable"></tbody>
-      </table>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-label">
+        <span id="progressLabel">Initialising...</span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
+    </div>
+
+    <div class="phase-cards" style="margin-top:1.5rem">
+      <div class="phase-card">
+        <div class="phase-label">Requests Before</div>
+        <div class="phase-val pending" id="pBefore">—</div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-label">Requests After</div>
+        <div class="phase-val pending" id="pAfter">—</div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-label">Violations Found</div>
+        <div class="phase-val pending" id="pViolations">—</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section id="results" style="padding-top:8rem">
+  <div class="results-inner">
+
+    <!-- Verdict banner -->
+    <div class="verdict-banner fail" id="verdictBanner">
+      <div class="verdict-left">
+        <h2 id="verdictTitle">Cookie Consent Violated</h2>
+        <p id="verdictSub"></p>
+      </div>
+      <div class="verdict-score">
+        <div class="score-num red" id="verdictNum">0</div>
+        <div class="score-label">undeclared trackers</div>
+      </div>
+    </div>
+
+    <!-- Metrics row -->
+    <div class="metrics">
+      <div class="metric">
+        <div class="m-label">Consent Platform</div>
+        <div class="m-val" id="mPlatform">—</div>
+      </div>
+      <div class="metric">
+        <div class="m-label">Reject All Clicked</div>
+        <div class="m-val" id="mClicked">—</div>
+      </div>
+      <div class="metric">
+        <div class="m-label">Trackers After Reject</div>
+        <div class="m-val red" id="mAfter">—</div>
+      </div>
+      <div class="metric">
+        <div class="m-label">Declared in Policy</div>
+        <div class="m-val green" id="mDeclared">—</div>
+      </div>
+    </div>
+
+    <!-- Violations -->
+    <div class="block">
+      <div class="block-header">
+        <h3>
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Tracker Violations
+        </h3>
+        <span class="chip red" id="violChip">0 found</span>
+      </div>
+      <div style="padding:0 1.5rem">
+        <table>
+          <thead><tr><th>Domain</th><th>Category</th><th style="max-width:220px">Data Collected</th><th>Status</th></tr></thead>
+          <tbody id="violTable"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Fixes -->
-    <div class="section">
-      <h3>Recommended Fixes</h3>
-      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:0.75rem;">Policy update — add to your cookie policy:</p>
-      <div class="fix-block" id="policyFix"></div>
-      <p style="font-size:0.85rem;color:var(--muted);margin:1rem 0 0.75rem;">Consent platform config — steps to fix your banner:</p>
-      <div class="fix-block" id="bannerFix"></div>
+    <div class="block">
+      <div class="block-header">
+        <h3>
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Recommended Fixes
+        </h3>
+        <span class="chip purple">2 actions</span>
+      </div>
+      <div class="tabs" id="fixTabs">
+        <button class="tab-btn active" onclick="switchTab('policy')">Policy Update</button>
+        <button class="tab-btn" onclick="switchTab('banner')">Banner Config</button>
+      </div>
+      <div class="tab-panel active" id="tab-policy">
+        <p style="font-size:0.8rem;color:var(--text2);margin-bottom:0.75rem">Add this paragraph to your cookie policy to disclose the undeclared trackers:</p>
+        <div class="code-block" id="policyFix"></div>
+      </div>
+      <div class="tab-panel" id="tab-banner">
+        <p style="font-size:0.8rem;color:var(--text2);margin-bottom:0.75rem">Step-by-step instructions to fix your consent platform configuration:</p>
+        <div class="code-block" id="bannerFix" style="white-space:pre-wrap"></div>
+      </div>
     </div>
 
     <!-- GDPR Exposure -->
-    <div class="section">
-      <h3>GDPR Exposure Estimate <span class="badge red" id="fineBadge"></span></h3>
-      <div class="exposure-grid" id="exposureGrid"></div>
-    </div>
-
-    <!-- Complaint letter -->
-    <div class="section">
-      <h3>DPA Complaint Letter</h3>
-      <div class="complaint-block">
-        <button class="copy-btn" onclick="copyComplaint()">Copy</button>
-        <div id="complaintText"></div>
+    <div class="block">
+      <div class="block-header">
+        <h3>
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          GDPR Fine Exposure
+        </h3>
+        <span class="chip red" id="fineChip">—</span>
+      </div>
+      <div class="block-body">
+        <div class="fine-max" id="fineMax">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+          <p>Under <strong>GDPR Art. 83</strong>, maximum fine is <strong id="fineMaxPct">—</strong>. Estimated exposure by company size:</p>
+        </div>
+        <div class="fine-grid" id="fineGrid"></div>
       </div>
     </div>
+
+    <!-- Verify -->
+    <div class="block">
+      <div class="block-header">
+        <h3>
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Verification Scan
+        </h3>
+      </div>
+      <div class="block-body">
+        <div class="verify-strip" id="verifyStrip">
+          <span id="verifyText">Checking...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Complaint -->
+    <div class="block">
+      <div class="block-header">
+        <h3>
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          DPA Complaint Letter
+        </h3>
+        <button class="copy-btn" onclick="copyComplaint()" id="copyBtn">Copy letter</button>
+      </div>
+      <div class="block-body" style="padding-top:0">
+        <p style="font-size:0.8rem;color:var(--text2);margin-bottom:0.75rem">Ready-to-send formal complaint to your national Data Protection Authority:</p>
+        <div class="complaint-box" id="complaintText"></div>
+      </div>
+    </div>
+
+    <!-- Scan again -->
+    <div style="text-align:center;padding:2rem 0">
+      <button onclick="resetScan()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:0.7rem 1.75rem;border-radius:var(--radius-sm);font-size:0.875rem;font-weight:600;cursor:pointer;font-family:var(--sans);transition:border-color 0.2s,color 0.2s" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--border2)'" onmouseout="this.style.color='var(--text2)'">← Scan another site</button>
+    </div>
+
   </div>
-</main>
+</section>
+
+<footer>
+  <p>ConsentGuard — Built for hackers who care about privacy · <a href="https://github.com/Avijeettelkar1/consentguard" target="_blank">GitHub</a></p>
+</footer>
 
 <script>
-// ── Change this to your Railway backend URL after deploy ──
-const API_URL = "http://localhost:8000";
+// In production: replace with your Railway URL e.g. "https://consentguard-production.up.railway.app"
+// In local dev: keep as localhost:8001
+const API_URL = window.location.hostname === "localhost" || window.location.protocol === "file:"
+  ? "http://localhost:8001"
+  : "RAILWAY_URL_PLACEHOLDER";
 
+// ── Scan flow ────────────────────────────────────────────────────────────────
 async function startScan() {
-  const input = document.getElementById("urlInput");
-  const btn = document.getElementById("scanBtn");
-  const status = document.getElementById("statusMsg");
-  const results = document.getElementById("results");
+  const input = document.getElementById('urlInput');
+  let url = input.value.trim();
+  if (!url) { input.focus(); return; }
+  if (!url.startsWith('http')) url = 'https://' + url;
 
-  const url = input.value.trim();
-  if (!url) { status.textContent = "Please enter a URL."; return; }
+  showScanning(url);
 
-  btn.disabled = true;
-  results.style.display = "none";
-  status.innerHTML = '<span class="spinner"></span>Launching sandbox and scanning cookies…';
+  // kick off API call
+  const apiPromise = fetch(`${API_URL}/scan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  }).then(r => { if (!r.ok) throw new Error('Scan failed'); return r.json(); });
+
+  // animate terminal in parallel
+  await animateTerminal(url);
 
   try {
-    const resp = await fetch(`${API_URL}/scan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
-    if (!resp.ok) throw new Error(await resp.text());
-    const data = await resp.json();
-    renderResults(data);
-    status.textContent = "Scan complete.";
-    results.style.display = "block";
-  } catch (err) {
-    status.textContent = "Error: " + err.message;
-  } finally {
-    btn.disabled = false;
+    const data = await apiPromise;
+    showResults(data);
+  } catch(e) {
+    document.getElementById('terminalBody').innerHTML += logLine('✗', `<span class="hl-red">Error: ${e.message}</span>`, elapsedTime());
+    document.getElementById('progressLabel').textContent = 'Error';
   }
 }
 
-function renderResults(d) {
-  const scan = d.scan || {};
-  document.getElementById("cPlatform").innerHTML =
-    scan.consent_platform
-      ? `<span class="platform-tag">${scan.consent_platform}</span>`
-      : '<span style="color:var(--muted)">Unknown</span>';
-  document.getElementById("cAfter").textContent = scan.after_count ?? 0;
-  document.getElementById("cUndeclared").textContent = (d.undeclared || []).length;
-  document.getElementById("cDeclared").textContent = (d.declared || []).length;
-
-  // Violations table
-  const violations = d.violations || [];
-  document.getElementById("violBadge").textContent = violations.length + " found";
-  const tbody = document.getElementById("violTable");
-  tbody.innerHTML = violations.map(v => `
-    <tr>
-      <td class="domain">${v.domain}</td>
-      <td><span class="cat">${v.category}</span></td>
-      <td style="color:var(--muted);font-size:0.8rem">${v.data_collected}</td>
-      <td>
-        ${v.declared
-          ? '<span class="badge green">✓ Declared</span>'
-          : '<span class="badge red">✗ Missing</span>'}
-      </td>
-    </tr>
-  `).join("");
-
-  // Fixes
-  const fixes = d.fixes || {};
-  document.getElementById("policyFix").innerHTML = fixes.policy_fix || "—";
-  document.getElementById("bannerFix").textContent = fixes.banner_fix || "—";
-
-  // Exposure
-  const exp = d.exposure || {};
-  document.getElementById("fineBadge").textContent = exp.max_fine_percent || "";
-  document.getElementById("exposureGrid").innerHTML = `
-    <div class="exp-item"><div class="exp-label">Small business estimate</div><div class="exp-value danger">${exp.estimated_range_small || "—"}</div></div>
-    <div class="exp-item"><div class="exp-label">Medium business estimate</div><div class="exp-value danger">${exp.estimated_range_medium || "—"}</div></div>
-    <div class="exp-item"><div class="exp-label">Large business estimate</div><div class="exp-value danger">${exp.estimated_range_large || "—"}</div></div>
-    <div class="exp-item"><div class="exp-label">Relevant Authority</div><div class="exp-value">${exp.relevant_authority || "—"}</div></div>
-  `;
-
-  // Complaint
-  document.getElementById("complaintText").textContent = d.complaint || "—";
+// ── Terminal animation ───────────────────────────────────────────────────────
+let scanStart = 0;
+function elapsedTime() {
+  const s = Math.floor((Date.now() - scanStart) / 1000);
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
 }
 
+function logLine(icon, html, time) {
+  return `<div class="log-line"><span class="log-time">${time||'00:00'}</span><span class="log-icon">${icon}</span><span class="log-text">${html}</span></div>`;
+}
+
+function appendLog(icon, html, delay) {
+  return new Promise(res => setTimeout(() => {
+    const body = document.getElementById('terminalBody');
+    // remove cursor from last line
+    body.querySelectorAll('.cursor').forEach(c => c.remove());
+    body.innerHTML += logLine(icon, html + '<span class="cursor"></span>', elapsedTime());
+    body.scrollTop = body.scrollHeight;
+    res();
+  }, delay));
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+}
+
+async function animateTerminal(url) {
+  scanStart = Date.now();
+  const domain = url.replace(/https?:\/\//,'').split('/')[0];
+
+  const steps = [
+    [400,  '▶', `Launching isolated Chromium sandbox`,                                        5,  'Launching sandbox...'],
+    [1200, '✓', `Sandbox ready <span class="hl-green">✓</span>`,                            12, 'Sandbox ready'],
+    [800,  '▶', `Navigating to <span class="hl">${domain}</span>`,                          18, 'Opening site...'],
+    [2500, '✓', `Page loaded — intercepting network traffic`,                                25, 'Recording requests...'],
+    [1000, '›', `Captured <span class="hl" id="tBefore">—</span> requests (baseline)`,     30, 'Baseline captured'],
+    [1200, '▶', `Detecting consent management platform`,                                     36, 'Detecting CMP...'],
+    [900,  '✓', `Cookie banner found — clicking <span class="hl-red">Reject All</span>`,   44, 'Clicking Reject All...'],
+    [1500, '✓', `Reject All clicked <span class="hl-green">✓</span> — waiting 3s`,         52, 'Waiting for settle...'],
+    [3000, '▶', `Reloading page, intercepting post-rejection traffic`,                       60, 'Re-scanning after reject...'],
+    [2000, '✓', `Captured <span class="hl" id="tAfter">—</span> requests after rejection`, 68, 'Cross-referencing trackers...'],
+    [1200, '▶', `Cross-referencing <span class="hl">6,324</span> known tracker domains`,    76, 'Checking tracker DB...'],
+    [1500, '✓', `Tracker identification complete`,                                           82, 'Reading cookie policy...'],
+    [1000, '▶', `Fetching and parsing cookie policy`,                                        87, 'Analyzing declarations...'],
+    [1200, '✓', `Policy analysed — checking declarations`,                                   92, 'Generating report...'],
+    [800,  '▶', `Calculating GDPR exposure + drafting complaint`,                            97, 'Generating report...'],
+    [600,  '✓', `Report ready <span class="hl-green">✓</span>`,                            100, 'Done'],
+  ];
+
+  let delay = 0;
+  for (const [wait, icon, text, pct, label] of steps) {
+    delay += wait;
+    await appendLog(icon, text, delay);
+    setTimeout(() => setProgress(pct, label), delay + 100);
+  }
+
+  await new Promise(r => setTimeout(r, delay + 200));
+}
+
+// ── Show/hide sections ───────────────────────────────────────────────────────
+function showScanning(url) {
+  document.getElementById('hero').style.display = 'none';
+  document.getElementById('howItWorks').style.display = 'none';
+  document.querySelector('.stats-strip').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('scanning').style.display = 'block';
+  document.getElementById('scanningUrl').textContent = url;
+  document.getElementById('terminalBody').innerHTML = logLine('▶', 'ConsentGuard scanner initialising<span class="cursor"></span>', '00:00');
+  setProgress(0, 'Initialising...');
+  ['pBefore','pAfter','pViolations'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = '—';
+    el.className = 'phase-val pending';
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showResults(data) {
+  document.getElementById('scanning').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  renderResults(data);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetScan() {
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('hero').style.display = 'flex';
+  document.getElementById('howItWorks').style.display = 'block';
+  document.querySelector('.stats-strip').style.display = 'grid';
+  document.getElementById('urlInput').value = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Render results ───────────────────────────────────────────────────────────
+function renderResults(d) {
+  const scan = d.scan || {};
+  const undeclared = d.undeclared || [];
+  const declared = d.declared || [];
+  const violations = d.violations || [];
+  const exposure = d.exposure || {};
+  const fixes = d.fixes || {};
+  const verify = d.verify || {};
+
+  // Verdict
+  const hasViolations = undeclared.length > 0;
+  const banner = document.getElementById('verdictBanner');
+  banner.className = 'verdict-banner ' + (hasViolations ? 'fail' : 'pass');
+  document.getElementById('verdictTitle').textContent = hasViolations
+    ? 'Cookie Consent Violated'
+    : 'Cookie Consent Compliant';
+  document.getElementById('verdictSub').textContent = hasViolations
+    ? `${undeclared.length} undeclared tracker${undeclared.length>1?'s':''} fired after "Reject All" on ${d.url}`
+    : `No undeclared trackers detected after "Reject All" on ${d.url}`;
+  const numEl = document.getElementById('verdictNum');
+  numEl.textContent = undeclared.length;
+  numEl.className = 'score-num ' + (hasViolations ? 'red' : 'green');
+
+  // Metrics
+  const platform = scan.consent_platform || 'Unknown';
+  document.getElementById('mPlatform').innerHTML = `<span class="m-platform">${platform}</span>`;
+  document.getElementById('mClicked').innerHTML = scan.clicked_reject
+    ? '<span style="color:var(--green)">Yes ✓</span>'
+    : '<span style="color:var(--red)">Not found ✗</span>';
+  document.getElementById('mAfter').textContent = scan.after_count ?? '—';
+  document.getElementById('mDeclared').textContent = declared.length;
+
+  // Violations table
+  document.getElementById('violChip').textContent = violations.length + ' found';
+  document.getElementById('violChip').className = 'chip ' + (violations.length ? 'red' : 'green');
+  document.getElementById('violTable').innerHTML = violations.map(v => `
+    <tr>
+      <td><span class="td-domain">${v.domain}</span></td>
+      <td><span class="td-cat">${v.category}</span></td>
+      <td class="td-desc">${v.data_collected}</td>
+      <td>${v.declared
+        ? '<span class="chip green">Declared</span>'
+        : '<span class="chip red">Undeclared</span>'}</td>
+    </tr>`).join('');
+
+  // Fixes
+  document.getElementById('policyFix').innerHTML = fixes.policy_fix || '—';
+  document.getElementById('bannerFix').textContent = fixes.banner_fix || '—';
+
+  // Fine exposure
+  document.getElementById('fineChip').textContent = exposure.max_fine_percent || '—';
+  document.getElementById('fineMaxPct').textContent = exposure.max_fine_percent || '—';
+  document.getElementById('fineGrid').innerHTML = [
+    ['Small business',  exposure.estimated_range_small],
+    ['Medium business', exposure.estimated_range_medium],
+    ['Large business',  exposure.estimated_range_large],
+    ['Relevant authority', exposure.relevant_authority],
+  ].map(([l,v]) => `<div class="fine-item"><div class="fi-label">${l}</div><div class="fi-val${l!=='Relevant authority'?' danger':''}">${v||'—'}</div></div>`).join('');
+
+  // Verify
+  const vs = document.getElementById('verifyStrip');
+  vs.className = 'verify-strip ' + (verify.clean ? 'clean' : 'dirty');
+  document.getElementById('verifyText').textContent = verify.clean
+    ? `✓ Verification scan shows 0 remaining violations — fix confirmed`
+    : `✗ ${verify.violation_count} tracker(s) still detected in verification scan`;
+
+  // Complaint
+  document.getElementById('complaintText').textContent = d.complaint || '—';
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── Copy ─────────────────────────────────────────────────────────────────────
 function copyComplaint() {
-  const text = document.getElementById("complaintText").textContent;
+  const text = document.getElementById('complaintText').textContent;
   navigator.clipboard.writeText(text).then(() => {
-    const btn = document.querySelector(".copy-btn");
-    btn.textContent = "Copied!";
-    setTimeout(() => btn.textContent = "Copy", 2000);
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => btn.textContent = 'Copy letter', 2000);
   });
 }
 
-document.getElementById("urlInput").addEventListener("keydown", e => {
-  if (e.key === "Enter") startScan();
+// Enter key on input
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScan();
 });
 </script>
+
 </body>
 </html>

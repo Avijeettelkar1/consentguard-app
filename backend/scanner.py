@@ -17,23 +17,49 @@ LOCAL_PLAYWRIGHT = os.getenv("LOCAL_PLAYWRIGHT", "false").lower() == "true"
 SNAPSHOT_ID = os.getenv("DAYTONA_SNAPSHOT")
 
 REJECT_SELECTORS = [
+    # generic attribute patterns
     "button[id*='reject']", "button[id*='decline']", "button[id*='deny']",
     "button[class*='reject']", "button[class*='decline']",
     "a[id*='reject']", "a[class*='reject']",
     "[aria-label*='reject' i]", "[aria-label*='decline' i]",
+    # text-based (covers most CMPs)
     "button:has-text('Reject All')", "button:has-text('Reject all')",
     "button:has-text('Decline All')", "button:has-text('Decline all')",
-    "button:has-text('Reject Cookies')", "button:has-text('No, thanks')",
+    "button:has-text('Reject Cookies')", "button:has-text('Reject cookies')",
+    "button:has-text('No, thanks')", "button:has-text('No Thanks')",
     "button:has-text('Only necessary')", "button:has-text('Only Necessary')",
+    "button:has-text('Only Required')", "button:has-text('Necessary Only')",
+    "button:has-text('Continue without accepting')",
+    "button:has-text('Continue without agreeing')",
+    # SourcePoint (BBC, Guardian)
+    "button[title*='Reject' i]", "button[title*='Decline' i]",
+    "[data-sp-button='reject']",
+    "button:has-text('Do not consent')", "button:has-text('Do Not Consent')",
+    # Cookiebot
+    "#CybotCookiebotDialogBodyButtonDecline",
+    # OneTrust
+    "#onetrust-reject-all-handler",
+    # TrustArc
+    ".call",
+    # Didomi
+    "#didomi-notice-disagree-button",
+    # Quantcast
+    ".qc-cmp2-summary-buttons button:last-child",
+    # Usercentrics
+    "[data-testid='uc-deny-all-button']",
 ]
 
 PLATFORM_SIGNALS = {
-    "OneTrust":     ["onetrust", "cookielaw.org"],
-    "Cookiebot":    ["cookiebot"],
-    "TrustArc":     ["trustarc", "truste.com"],
-    "Didomi":       ["didomi.io"],
-    "Quantcast":    ["quantcast"],
-    "Usercentrics": ["usercentrics"],
+    "OneTrust":       ["onetrust", "cookielaw.org"],
+    "Cookiebot":      ["cookiebot"],
+    "TrustArc":       ["trustarc", "truste.com"],
+    "Didomi":         ["didomi.io"],
+    "Quantcast":      ["quantcast"],
+    "Usercentrics":   ["usercentrics"],
+    "SourcePoint":    ["privacy-mgmt.com", "sourcepoint", "sp-cdn"],
+    "Axeptio":        ["axeptio"],
+    "CookieYes":      ["cookieyes", "cookie-law-info"],
+    "Termly":         ["termly.io"],
     "Custom":       ["cookie-banner", "cookie_banner", "cookiebanner"],
 }
 
@@ -105,10 +131,10 @@ async def _playwright_scan(url: str) -> dict:
     }
 
 
-def _run_local(url: str) -> dict:
+async def _run_local(url: str) -> dict:
     """Run Playwright directly on this machine — no Daytona needed."""
     print(f"[LOCAL] Scanning {url} with local Playwright...")
-    return asyncio.run(_playwright_scan(url))
+    return await _playwright_scan(url)
 
 
 def _run_daytona(url: str) -> dict:
@@ -196,14 +222,14 @@ asyncio.run(scan())
         sandbox.delete()
 
 
-def run_scan(url: str) -> dict:
+async def run_scan(url: str) -> dict:
     if LOCAL_PLAYWRIGHT:
-        return _run_local(url)
+        return await _run_local(url)
     return _run_daytona(url)
 
 
 if __name__ == "__main__":
     import sys
     target = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:3000"
-    result = run_scan(target)
+    result = asyncio.run(run_scan(target))
     print(json.dumps(result, indent=2))
