@@ -81,7 +81,7 @@ async def _playwright_scan(url: str) -> dict:
 
         page.on("request", lambda req: before_requests.append(req.url))
 
-        await page.goto(url, wait_until="networkidle", timeout=30000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=45000)
         page_html = await page.content()
 
         for platform, signals in PLATFORM_SIGNALS.items():
@@ -116,7 +116,7 @@ async def _playwright_scan(url: str) -> dict:
         await page.wait_for_timeout(3000)
 
         page.on("request", lambda req: after_requests.append(req.url))
-        await page.reload(wait_until="networkidle", timeout=30000)
+        await page.reload(wait_until="domcontentloaded", timeout=45000)
         await page.wait_for_timeout(3000)
 
         await browser.close()
@@ -159,7 +159,7 @@ async def scan():
         context = await browser.new_context()
         page = await context.new_page()
         page.on("request", lambda req: before_requests.append(req.url))
-        await page.goto({json.dumps(url)}, wait_until="networkidle", timeout=30000)
+        await page.goto({json.dumps(url)}, wait_until="domcontentloaded", timeout=45000)
         page_html = await page.content()
 
         platform_signals = {{
@@ -195,7 +195,7 @@ async def scan():
 
         await page.wait_for_timeout(3000)
         page.on("request", lambda req: after_requests.append(req.url))
-        await page.reload(wait_until="networkidle", timeout=30000)
+        await page.reload(wait_until="domcontentloaded", timeout=45000)
         await page.wait_for_timeout(3000)
         await browser.close()
 
