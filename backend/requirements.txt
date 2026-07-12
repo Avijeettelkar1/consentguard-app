@@ -4,3 +4,4 @@ daytona-sdk
 anthropic
 requests
 python-dotenv
+pyjwt

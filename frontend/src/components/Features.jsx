@@ -159,7 +159,7 @@ function Step({ step, index }) {
 
 export default function Features() {
   return (
-    <section className="features-section">
+    <section className="features-section" id="howItWorks">
       <div className="features-inner">
         <div className="features-header">
           <span className="section-tag">How it works</span>

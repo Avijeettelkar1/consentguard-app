@@ -1,120 +1,37 @@
-import { useRef, useEffect, useState, lazy, Suspense } from 'react'
+import EvidencePanel from './EvidencePanel'
 
-const ThreeScene = lazy(() => import('./ThreeScene'))
-
-const PHASES = [
-  {
-    label: 'The problem',
-    heading: (
-      <>
-        Most cookie banners are
-        <br />
-        <em className="display-italic">lying to your users.</em>
-      </>
-    ),
-    sub: 'Click "Reject All" — trackers fire anyway. We expose it.',
-  },
-  {
-    label: 'The evidence',
-    heading: (
-      <>
-        Trackers fire even
-        <br />
-        <em className="display-italic">after Reject All.</em>
-      </>
-    ),
-    sub: 'facebook.net · bat.bing.com · segment.com · google-analytics.com',
-  },
-  {
-    label: 'The fix',
-    heading: (
-      <>
-        Your GDPR report,
-        <br />
-        <em className="display-italic">in 30 seconds.</em>
-      </>
-    ),
-    sub: 'Fine exposure · DPA complaint · Policy fix — all generated automatically.',
-  },
-]
-
-export default function Hero({ onScan }) {
-  const containerRef = useRef()
-  const scrollRef = useRef(0)
-  const [phase, setPhase] = useState(0)
-  const [inputUrl, setInputUrl] = useState('')
-
-  useEffect(() => {
-    const onScroll = () => {
-      const el = containerRef.current
-      if (!el) return
-      const total = el.offsetHeight - window.innerHeight
-      const scrolled = Math.max(0, -el.getBoundingClientRect().top)
-      const sp = Math.min(1, scrolled / total)
-      scrollRef.current = sp
-      setPhase(sp < 0.38 ? 0 : sp < 0.72 ? 1 : 2)
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (inputUrl.trim()) onScan(inputUrl.trim())
-  }
+export default function Hero({ onGetStarted }) {
 
   return (
-    <div ref={containerRef} style={{ height: '280vh', position: 'relative' }}>
-      <div className="sticky-hero">
-        <div className="hero-canvas">
-          <Suspense fallback={null}>
-            <ThreeScene scrollRef={scrollRef} />
-          </Suspense>
-        </div>
-        <div className="hero-overlay" />
+    <section className="hero" id="top">
+      <div className="hero-grid-bg bg-grid" />
+      <div className="hero-inner">
+        <div className="hero-left">
+          <div className="hero-eyebrow"><span className="edot" />Independent · Evidence-based · GDPR Art. 5, 7, 83</div>
+          <h1>
+            Cookie banners are <em>theatre.</em><br />
+            We publish the receipts.
+          </h1>
+          <p className="hero-sub">
+            We run your site in a real browser, click “Reject All”, and record every tracker that
+            keeps firing anyway — matched against 6,326 known ad &amp; analytics domains.
+          </p>
 
-        <div className="hero-content">
-          <div className="phase-switcher">
-            {PHASES.map((p, i) => (
-              <div key={i} className={`phase-block${phase === i ? ' active' : ''}`}>
-                <span className="phase-label-tag">{p.label}</span>
-                <h1 className="display-title">{p.heading}</h1>
-                <p className="hero-sub">{p.sub}</p>
-              </div>
-            ))}
+          <div className="hero-actions">
+            <button className="btn-dark" onClick={onGetStarted}>
+              Get started free
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+            </button>
+            <a className="btn-outline" href="#how">See how it works</a>
           </div>
 
-          <form className="scan-row" onSubmit={handleSubmit}>
-            <span className="scan-prefix">https://</span>
-            <input
-              id="urlInput"
-              className="scan-input"
-              placeholder="yourwebsite.com"
-              value={inputUrl}
-              onChange={(e) => setInputUrl(e.target.value)}
-            />
-            <button className="scan-btn" type="submit">
-              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-              </svg>
-              Scan Now
-            </button>
-          </form>
-
-          <p className="scan-hint">No login · No install · <span>Results in ~30s</span></p>
+          <div className="hero-caption">Free · No cookies stored · Report ready in ~30 seconds</div>
         </div>
 
-        <div className="phase-dots">
-          {PHASES.map((_, i) => (
-            <div key={i} className={`phase-dot${phase === i ? ' active' : ''}`} />
-          ))}
-        </div>
-
-        <div className="scroll-cue">
-          <div className="scroll-cue-line" />
-          <span>scroll</span>
+        <div className="hero-right">
+          <EvidencePanel />
         </div>
       </div>
-    </div>
+    </section>
   )
 }

@@ -1,30 +1,41 @@
 import { useState, useEffect, useRef } from 'react'
 
+// Honest phase log. The scan is a single backend request with no streaming, so
+// these describe the real pipeline stages in order and the bar is a time-based
+// estimate that holds at 92% until the actual result arrives (component unmounts).
 const STEPS = [
-  { wait: 400,  icon: '▶', text: 'Launching isolated Chromium sandbox',                        pct: 5,  label: 'Launching sandbox...' },
-  { wait: 1200, icon: '✓', text: 'Sandbox ready ✓',                                            pct: 12, label: 'Sandbox ready' },
-  { wait: 800,  icon: '▶', text: (domain) => `Navigating to ${domain}`,                        pct: 18, label: 'Opening site...' },
-  { wait: 2500, icon: '✓', text: 'Page loaded — intercepting network traffic',                  pct: 26, label: 'Recording baseline...' },
-  { wait: 1000, icon: '›', text: 'Captured baseline requests',                                  pct: 32, label: 'Baseline captured' },
-  { wait: 1200, icon: '▶', text: 'Detecting consent management platform',                       pct: 40, label: 'Detecting CMP...' },
-  { wait: 900,  icon: '✓', text: 'Cookie banner found — clicking Accept All',                   pct: 46, label: 'Clicking Accept All...' },
-  { wait: 1500, icon: '✓', text: 'Accept All clicked ✓ — recording accept traffic',             pct: 54, label: 'Recording accept scan...' },
-  { wait: 2000, icon: '▶', text: 'Fresh session — clicking Reject All',                         pct: 62, label: 'Clicking Reject All...' },
-  { wait: 2000, icon: '✓', text: 'Reject All clicked ✓ — recording post-rejection traffic',    pct: 70, label: 'Re-scanning after reject...' },
-  { wait: 1200, icon: '▶', text: 'Cross-referencing 6,324 known tracker domains',               pct: 78, label: 'Checking tracker DB...' },
-  { wait: 1500, icon: '✓', text: 'Tracker identification complete',                             pct: 84, label: 'Reading cookie policy...' },
-  { wait: 1000, icon: '▶', text: 'Fetching and parsing cookie policy',                         pct: 90, label: 'Analyzing declarations...' },
-  { wait: 1200, icon: '✓', text: 'Policy analysed — checking declarations',                    pct: 95, label: 'Generating report...' },
-  { wait: 800,  icon: '▶', text: 'Calculating GDPR exposure',                                  pct: 98, label: 'Generating report...' },
-  { wait: 600,  icon: '✓', text: 'Report ready ✓',                                             pct: 100, label: 'Done' },
+  { wait: 400,  icon: '▶', text: 'Launching isolated Chromium sandbox',                     pct: 6,  label: 'Launching sandbox…' },
+  { wait: 1200, icon: '✓', text: 'Sandbox ready — no cookies, no history',                  pct: 12, label: 'Sandbox ready' },
+  { wait: 800,  icon: '▶', text: (d) => `Navigating to ${d}`,                               pct: 18, label: 'Opening site…' },
+  { wait: 2400, icon: '✓', text: 'Page loaded — capturing baseline network traffic',        pct: 26, label: 'Recording baseline…' },
+  { wait: 1000, icon: '›', text: 'Baseline captured',                                       pct: 32, label: 'Baseline captured' },
+  { wait: 1200, icon: '▶', text: 'Detecting consent management platform',                    pct: 40, label: 'Detecting CMP…' },
+  { wait: 1000, icon: '✓', text: 'Clicking “Accept All” — recording traffic',               pct: 48, label: 'Recording accept…' },
+  { wait: 1800, icon: '▶', text: 'Fresh session — clicking “Reject All”',                   pct: 58, label: 'Clicking Reject All…' },
+  { wait: 2000, icon: '✓', text: 'Reject recorded — capturing post-consent traffic',        pct: 68, label: 'Re-scanning after reject…' },
+  { wait: 1400, icon: '▶', text: 'Cross-referencing Disconnect.me (6,326 domains)',         pct: 78, label: 'Checking tracker DB…' },
+  { wait: 1500, icon: '✓', text: 'Trackers identified',                                     pct: 84, label: 'Reading cookie policy…' },
+  { wait: 1200, icon: '▶', text: 'Reading cookie policy for declarations',                  pct: 90, label: 'Analysing declarations…' },
+  { wait: 1000, icon: '›', text: 'Compiling compliance report',                             pct: 92, label: 'Compiling report…' },
 ]
+
+const STAGES = [
+  { name: 'Isolated browser scan', start: 0,  end: 32 },
+  { name: 'Accept vs Reject capture', start: 32, end: 68 },
+  { name: 'Tracker cross-reference', start: 68, end: 101 }, // stays "running" until the report replaces this screen
+]
+
+function stageState(pct, s) {
+  if (pct >= s.end) return 'done'
+  if (pct >= s.start) return 'active'
+  return 'pending'
+}
+const stageWord = { done: 'Done ✓', active: 'Running…', pending: 'Queued' }
 
 export default function Scanning({ url, error }) {
   const [logs, setLogs] = useState([])
-  const [progress, setProgress] = useState({ pct: 0, label: 'Initialising...' })
-  const [phaseB, setPhaseB] = useState('—')
-  const [phaseA, setPhaseA] = useState('—')
-  const [phaseV, setPhaseV] = useState('—')
+  const [progress, setProgress] = useState({ pct: 0, label: 'Initialising…' })
+  const [slow, setSlow] = useState(false)
   const startRef = useRef(Date.now())
   const bodyRef = useRef(null)
 
@@ -37,27 +48,26 @@ export default function Scanning({ url, error }) {
     startRef.current = Date.now()
     const domain = url.replace(/https?:\/\//, '').split('/')[0]
     setLogs([{ icon: '▶', text: 'ConsentGuard scanner initialising', time: '00:00', cursor: true }])
-    setProgress({ pct: 0, label: 'Initialising...' })
-    setPhaseB('—'); setPhaseA('—'); setPhaseV('—')
+    setProgress({ pct: 0, label: 'Initialising…' })
+    setSlow(false)
 
     let delay = 0
     const timers = []
 
-    STEPS.forEach(({ wait, icon, text, pct, label }, i) => {
+    STEPS.forEach(({ wait, icon, text, pct, label }) => {
       delay += wait
       timers.push(setTimeout(() => {
         const resolved = typeof text === 'function' ? text(domain) : text
-        setLogs(prev => [
-          ...prev.map(l => ({ ...l, cursor: false })),
-          { icon, text: resolved, time: fmt(), cursor: true }
+        setLogs((prev) => [
+          ...prev.map((l) => ({ ...l, cursor: false })),
+          { icon, text: resolved, time: fmt(), cursor: true },
         ])
         setProgress({ pct, label })
-
-        if (i === 4) setPhaseB(String(Math.floor(Math.random() * 8 + 4)))
-        if (i === 9) setPhaseA(String(Math.floor(Math.random() * 12 + 6)))
-        if (i === 14) setPhaseV(String(Math.floor(Math.random() * 5 + 1)))
       }, delay))
     })
+
+    // if the real scan is still running after the estimate, reassure honestly
+    timers.push(setTimeout(() => setSlow(true), delay + 5000))
 
     return () => timers.forEach(clearTimeout)
   }, [url])
@@ -70,7 +80,7 @@ export default function Scanning({ url, error }) {
     <section className="scanning-section">
       <div className="scanning-header">
         <h2>Running compliance scan</h2>
-        <p>Scanning <span className="scanning-url">{url}</span></p>
+        <p>Scanning <span className="scanning-url">{url}</span> — this is a real browser visit, so it can take 15–40s.</p>
       </div>
 
       <div className="terminal">
@@ -85,15 +95,22 @@ export default function Scanning({ url, error }) {
               <span className="log-icon">{log.icon}</span>
               <span className="log-text">
                 {log.text}
-                {log.cursor && <span className="cursor" />}
+                {log.cursor && !error && <span className="cursor" />}
               </span>
             </div>
           ))}
+          {slow && !error && (
+            <div className="log-line">
+              <span className="log-time">{fmt()}</span>
+              <span className="log-icon">›</span>
+              <span className="log-text" style={{ color: 'var(--text3)' }}>Larger sites take a little longer — still scanning…</span>
+            </div>
+          )}
           {error && (
             <div className="log-line">
               <span className="log-time">{fmt()}</span>
-              <span className="log-icon">✗</span>
-              <span className="log-text" style={{ color: 'var(--red)' }}>Error: {error}</span>
+              <span className="log-icon" style={{ color: 'var(--rose)' }}>✗</span>
+              <span className="log-text" style={{ color: 'var(--rose)' }}>Scan failed: {error}</span>
             </div>
           )}
         </div>
@@ -101,25 +118,24 @@ export default function Scanning({ url, error }) {
 
       <div className="progress-wrap">
         <div className="progress-labels">
-          <span>{progress.label}</span>
-          <span>{progress.pct}%</span>
+          <span>{error ? 'Stopped' : progress.label}</span>
+          <span>{error ? '' : `${progress.pct}%`}</span>
         </div>
         <div className="progress-track">
-          <div className="progress-fill" style={{ width: `${progress.pct}%` }} />
+          <div className="progress-fill" style={{ width: `${error ? progress.pct : progress.pct}%`, background: error ? 'var(--rose)' : undefined }} />
         </div>
       </div>
 
       <div className="phase-cards">
-        {[
-          { label: 'Requests Before', val: phaseB },
-          { label: 'Requests After Reject', val: phaseA },
-          { label: 'Violations Found', val: phaseV, bad: phaseV !== '—' && phaseV !== '0' },
-        ].map(({ label, val, bad }) => (
-          <div className="phase-card" key={label}>
-            <div className="phase-label">{label}</div>
-            <div className={`phase-val ${val === '—' ? 'pending' : bad ? 'bad' : 'done'}`}>{val}</div>
-          </div>
-        ))}
+        {STAGES.map((s) => {
+          const state = error ? 'pending' : stageState(progress.pct, s)
+          return (
+            <div className="phase-card" key={s.name}>
+              <div className="phase-label">{s.name}</div>
+              <div className={`phase-val ${state}`}>{stageWord[state]}</div>
+            </div>
+          )
+        })}
       </div>
     </section>
   )
