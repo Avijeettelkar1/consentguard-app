@@ -22,7 +22,7 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 JWT_SECRET = os.getenv("JWT_SECRET", "consentguard-dev-secret-change-in-prod")
 JWT_ALG = "HS256"
 JWT_TTL_HOURS = int(os.getenv("JWT_TTL_HOURS", "168"))  # 7 days
-DB_PATH = Path(__file__).with_name("consentguard.db")
+DB_PATH = os.getenv("CG_DB_PATH") or str(Path(__file__).with_name("consentguard.db"))
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 bearer = HTTPBearer(auto_error=True)

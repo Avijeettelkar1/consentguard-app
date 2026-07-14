@@ -223,7 +223,7 @@ async def _monitor_loop() -> None:
 
 def start_scheduler() -> None:
     global _scheduler_started
-    if _scheduler_started:
+    if _scheduler_started or os.getenv("DISABLE_SCHEDULER"):
         return
     _scheduler_started = True
     try:
