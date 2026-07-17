@@ -45,18 +45,32 @@ export default function Results({ data, onReset }) {
           <ScoreGauge score={compliance.score} grade={compliance.grade} label={compliance.label} />
         </div>
 
-        {/* Fine exposure — the impact number, compact */}
-        <div className="fine-strip">
-          <div className="fine-strip-lead">
-            <span className="fine-strip-label">GDPR fine exposure</span>
-            <span className="fine-strip-val">{exposure.estimated_range_medium || '—'}</span>
-            <span className="fine-strip-sub">medium company · up to {exposure.max_fine_percent || '4% of turnover'} under Art. 83</span>
+        {/* Fine exposure — only a real number when there are actual violations */}
+        {hasViolations ? (
+          <div className="fine-strip">
+            <div className="fine-strip-lead">
+              <span className="fine-strip-label">GDPR fine exposure</span>
+              <span className="fine-strip-val">{exposure.estimated_range_medium || '—'}</span>
+              <span className="fine-strip-sub">medium company · up to {exposure.max_fine_percent || '4% of turnover'} under Art. 83</span>
+            </div>
+            <div className="fine-strip-ranges">
+              <div><i>Small</i>{exposure.estimated_range_small || '—'}</div>
+              <div><i>Large</i>{exposure.estimated_range_large || '—'}</div>
+            </div>
           </div>
-          <div className="fine-strip-ranges">
-            <div><i>Small</i>{exposure.estimated_range_small || '—'}</div>
-            <div><i>Large</i>{exposure.estimated_range_large || '—'}</div>
+        ) : (
+          <div className="fine-strip clean">
+            <div className="fine-strip-lead">
+              <span className="fine-strip-label">GDPR fine exposure</span>
+              <span className="fine-strip-val">No exposure</span>
+              <span className="fine-strip-sub">No undeclared trackers fired after “Reject All” — nothing to fine you for.</span>
+            </div>
+            <div className="fine-strip-ok">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Compliant
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Violations table — the evidence */}
         <div className="block">

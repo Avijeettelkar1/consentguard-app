@@ -1,0 +1,24 @@
+# Example: drop this into a customer repo at .github/workflows/compliance-gate.yml
+# It blocks a merge/deploy if the staging site fires undeclared trackers.
+name: Compliance gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  gdpr-cookie-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ConsentGuard — cookie compliance
+        uses: Avijeettelkar1/consentguard-app/gate@main
+        with:
+          # Your deployed/preview URL to test before it goes live:
+          url: https://staging.your-company.com
+          # Your ConsentGuard API (deployed instance):
+          api-url: https://api.your-consentguard.com
+          # Uncomment if staging is password-protected:
+          # username: ${{ secrets.STAGING_USER }}
+          # password: ${{ secrets.STAGING_PASS }}
+          max-undeclared: "0"

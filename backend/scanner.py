@@ -340,19 +340,22 @@ print(json.dumps(asyncio.run(scan(TARGET_URL))))
 """
 
 
-def run_scan(url: str) -> dict:
-    if SNAPSHOT_ID and DAYTONA_API_KEY:
+def run_scan(url: str, auth: dict | None = None) -> dict:
+    """Scan a URL. ``auth`` optionally holds credentials for private/staging sites:
+    {"username", "password"} for HTTP Basic auth and/or {"headers": {name: value}}
+    for a token / staging-bypass header."""
+    if SNAPSHOT_ID and DAYTONA_API_KEY and not auth:
         try:
             return _run_daytona_scan(url)
         except Exception as exc:
-            fallback = _run_http_scan(url)
+            fallback = _run_http_scan(url, auth)
             fallback["scanner_error"] = f"Daytona scan failed: {exc}"
             return fallback
 
     try:
-        return _run_local_playwright_scan(url)
+        return _run_local_playwright_scan(url, auth)
     except Exception as exc:
-        fallback = _run_http_scan(url)
+        fallback = _run_http_scan(url, auth)
         fallback["scanner_error"] = f"Playwright unavailable: {exc}"
         return fallback
 
@@ -389,13 +392,13 @@ def _run_daytona_scan(url: str) -> dict:
         daytona.delete(sandbox)
 
 
-def _run_local_playwright_scan(url: str) -> dict:
+def _run_local_playwright_scan(url: str, auth: dict | None = None) -> dict:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        accept = _scan_branch(browser, url, "accept", ACCEPT_SELECTORS)
-        reject = _scan_branch(browser, url, "reject", REJECT_SELECTORS)
+        accept = _scan_branch(browser, url, "accept", ACCEPT_SELECTORS, auth)
+        reject = _scan_branch(browser, url, "reject", REJECT_SELECTORS, auth)
         browser.close()
 
     return {
@@ -413,8 +416,14 @@ def _run_local_playwright_scan(url: str) -> dict:
     }
 
 
-def _scan_branch(browser, url: str, action: str, selectors: list[str]) -> dict:
-    context = browser.new_context(ignore_https_errors=True, locale="de-DE")
+def _scan_branch(browser, url: str, action: str, selectors: list[str], auth: dict | None = None) -> dict:
+    ctx_kwargs = {"ignore_https_errors": True, "locale": "de-DE"}
+    if auth:
+        if auth.get("username"):
+            ctx_kwargs["http_credentials"] = {"username": auth["username"], "password": auth.get("password", "")}
+        if auth.get("headers"):
+            ctx_kwargs["extra_http_headers"] = auth["headers"]
+    context = browser.new_context(**ctx_kwargs)
     page = context.new_page()
     initial_requests = []
     post_consent_requests = []
@@ -625,15 +634,20 @@ def _compare_scan_branches(accept: dict, reject: dict) -> dict:
     }
 
 
-def _run_http_scan(url: str) -> dict:
+def _run_http_scan(url: str, auth: dict | None = None) -> dict:
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
         )
     }
+    req_auth = None
+    if auth:
+        headers.update(auth.get("headers") or {})
+        if auth.get("username"):
+            req_auth = (auth["username"], auth.get("password", ""))
     try:
-        response = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+        response = requests.get(url, headers=headers, auth=req_auth, timeout=15, allow_redirects=True)
         html = response.text or ""
         final_url = response.url or url
     except Exception as exc:

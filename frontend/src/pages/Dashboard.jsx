@@ -24,6 +24,10 @@ export default function Dashboard() {
   const [inputError, setInputError] = useState(null)
   const [scans, setScans] = useState([])
   const [tab, setTab] = useState('scan')
+  const [showAuth, setShowAuth] = useState(false)
+  const [authUser, setAuthUser] = useState('')
+  const [authPass, setAuthPass] = useState('')
+  const [authNotice, setAuthNotice] = useState(null)
 
   const firstName = (user?.name || 'there').split(' ')[0]
 
@@ -39,12 +43,23 @@ export default function Dashboard() {
     const check = normalizeUrl(url)
     if (!check.ok) { setInputError(check.error); return }
     setInputError(null)
+    setAuthNotice(null)
     setScanUrl(check.url)
     setError(null)
     setResults(null)
     setView('scanning')
+    const auth = showAuth && authUser.trim()
+      ? { username: authUser.trim(), password: authPass }
+      : undefined
     try {
-      const data = await fetchScan(check.url)
+      const data = await fetchScan(check.url, auth)
+      if (data.auth_required) {
+        // site is behind a login — prompt for credentials instead of a false report
+        setAuthNotice(data.notice)
+        setShowAuth(true)
+        setView('idle')
+        return
+      }
       setResults(data)
       setView('results')
       const c = scoreFromResult(data)
@@ -137,13 +152,31 @@ export default function Dashboard() {
             <input
               placeholder="bbc.com"
               value={url}
-              onChange={(e) => { setUrl(e.target.value); if (inputError) setInputError(null) }}
+              onChange={(e) => { setUrl(e.target.value); if (inputError) setInputError(null); if (authNotice) setAuthNotice(null) }}
             />
             <button className="btn-dark" type="submit">▶ Run scan</button>
           </form>
           {inputError
             ? <div className="scan-error">{inputError}</div>
             : <div className="dash-scan-hint"><span className="live-dot" /> Live scanner · 6,326 tracker domains · ~30s per scan</div>}
+
+          {authNotice && (
+            <div className="auth-required-note">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>{authNotice}</span>
+            </div>
+          )}
+
+          <button type="button" className="auth-toggle" onClick={() => setShowAuth((v) => !v)}>
+            <span className="auth-caret">{showAuth ? '▾' : '▸'}</span> Behind a login? Scan a private or staging site
+          </button>
+          {showAuth && (
+            <div className="auth-fields">
+              <input placeholder="Username" autoComplete="off" value={authUser} onChange={(e) => setAuthUser(e.target.value)} />
+              <input type="password" placeholder="Password" autoComplete="new-password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} />
+              <p className="auth-fields-note">HTTP Basic auth. Used for this scan only — never stored.</p>
+            </div>
+          )}
 
           {total > 0 && (
             <div className="kpi-grid">

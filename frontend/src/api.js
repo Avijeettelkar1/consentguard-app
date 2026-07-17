@@ -14,11 +14,12 @@ async function parseError(res) {
   return `Request failed (${res.status})`
 }
 
-export async function fetchScan(url) {
+export async function fetchScan(url, auth) {
+  // auth (optional): { username, password } and/or { header_name, header_value }
   const res = await fetch(`${API_URL}/scan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, ...(auth || {}) }),
   })
   if (!res.ok) throw new Error(await parseError(res))
   return res.json()

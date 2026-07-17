@@ -42,6 +42,21 @@ app.include_router(notify_router)
 
 class ScanRequest(BaseModel):
     url: str = Field(..., min_length=3)
+    # optional credentials for private / staging / password-protected sites
+    username: str | None = Field(None, max_length=200)
+    password: str | None = Field(None, max_length=400)
+    header_name: str | None = Field(None, max_length=100)
+    header_value: str | None = Field(None, max_length=1000)
+
+
+def _auth_from_req(req: "ScanRequest") -> dict | None:
+    auth: dict = {}
+    if req.username:
+        auth["username"] = req.username.strip()
+        auth["password"] = req.password or ""
+    if req.header_name and req.header_value:
+        auth["headers"] = {req.header_name.strip(): req.header_value.strip()}
+    return auth or None
 
 
 if not USE_MOCK:
@@ -93,13 +108,22 @@ async def scan_endpoint(req: ScanRequest) -> dict:
     if USE_MOCK:
         return _mock_response(url)
 
-    reachable, reason, working_url = await asyncio.to_thread(_check_reachable, url)
+    auth = _auth_from_req(req)
+    reachable, reason, working_url, status = await asyncio.to_thread(_check_reachable, url, auth)
     if not reachable:
         raise HTTPException(status_code=422, detail=reason)
+    if status == 401:
+        # HTTP auth wall — don't waste a scan or report a false "compliant".
+        notice = (
+            "Login failed — check the username and password, then scan again."
+            if auth else
+            "This site is behind a login. Open “Behind a login?”, add the username and password, and scan again."
+        )
+        return {"auth_required": True, "url": working_url, "notice": notice}
     url = working_url
 
     try:
-        scan_data = await asyncio.to_thread(run_scan, url)
+        scan_data = await asyncio.to_thread(run_scan, url, auth)
         tag_audit = audit_tags(scan_data)
         tracker_hits = find_violations(scan_data.get("after", []))
         accept_tracker_hits = find_violations(scan_data.get("accept", {}).get("post_consent_requests", []))
@@ -206,10 +230,10 @@ def _normalize_url(url: str) -> str:
     return cleaned
 
 
-def _check_reachable(url: str) -> tuple[bool, str, str]:
+def _check_reachable(url: str, auth: dict | None = None) -> tuple[bool, str, str]:
     """Confirm the domain resolves and a server actually responds before scanning.
 
-    Returns (ok, error_message, working_url). Discovers which scheme actually
+    Returns (ok, error_message, working_url, http_status). Discovers which scheme actually
     answers (some real sites, e.g. check.de, serve HTTP only) and returns that
     URL so the scanner doesn't waste time on a dead port. Only hard failures
     (DNS miss on every host, refused/timed-out on both schemes) count as
@@ -217,34 +241,40 @@ def _check_reachable(url: str) -> tuple[bool, str, str]:
     """
     host = (urlparse(url).hostname or "").strip()
     if not host:
-        return False, "That doesn't look like a valid website address.", url
+        return False, "That doesn't look like a valid website address.", url, None
 
     # 1) DNS: does the domain exist at all?
     try:
         socket.getaddrinfo(host, None)
     except socket.gaierror:
-        return False, f"“{host}” doesn’t exist — we couldn’t resolve that domain. Check the spelling and try again.", url
+        return False, f"“{host}” doesn’t exist — we couldn’t resolve that domain. Check the spelling and try again.", url, None
     except Exception:
         pass  # non-DNS resolver hiccup: fall through to the HTTP probe
 
     # 2) HTTP: which scheme actually answers? Prefer https, fall back to http.
     headers = {"User-Agent": "Mozilla/5.0 (compatible; ConsentGuardBot/1.0; +https://consentguard.io)"}
+    req_auth = None
+    if auth:
+        headers.update(auth.get("headers") or {})
+        if auth.get("username"):
+            req_auth = (auth["username"], auth.get("password", ""))
     candidates = [url]
     if url.startswith("https://"):
         candidates.append("http://" + url[len("https://"):])
     for scheme_url in candidates:
         try:
-            resp = requests.get(scheme_url, timeout=8, allow_redirects=True, stream=True, headers=headers)
+            resp = requests.get(scheme_url, timeout=8, allow_redirects=True, stream=True, headers=headers, auth=req_auth)
             final = resp.url or scheme_url
+            status = resp.status_code
             resp.close()
-            return True, "", final  # any HTTP response = the site is live
+            return True, "", final, status  # any HTTP response = the site is live
         except requests.exceptions.SSLError:
             continue  # https broken → try the http candidate before giving up
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
             continue
         except requests.exceptions.RequestException:
-            return True, "", scheme_url  # odd protocol error: let the real scanner decide
-    return False, f"We couldn’t reach “{host}”. The site may be offline or refusing connections right now.", url
+            return True, "", scheme_url, None  # odd protocol error: let the real scanner decide
+    return False, f"We couldn’t reach “{host}”. The site may be offline or refusing connections right now.", url, None
 
 
 def _summarize_comparison(scan_data: dict) -> dict:

@@ -1,0 +1,48 @@
+name: "ConsentGuard Compliance Gate"
+description: "Fail the build if a page fires undeclared trackers after Reject All (a GDPR violation)."
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  url:
+    description: "URL to scan — usually your staging / preview deployment."
+    required: true
+  api-url:
+    description: "ConsentGuard API base URL."
+    required: false
+    default: "http://localhost:8000"
+  username:
+    description: "HTTP Basic auth username (for password-protected / staging sites)."
+    required: false
+    default: ""
+  password:
+    description: "HTTP Basic auth password."
+    required: false
+    default: ""
+  header-name:
+    description: "Custom request header name (e.g. a staging-bypass token header)."
+    required: false
+    default: ""
+  header-value:
+    description: "Custom request header value."
+    required: false
+    default: ""
+  max-undeclared:
+    description: "Allowed undeclared trackers before the gate fails."
+    required: false
+    default: "0"
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      env:
+        URL: ${{ inputs.url }}
+        API_URL: ${{ inputs.api-url }}
+        USERNAME: ${{ inputs.username }}
+        PASSWORD: ${{ inputs.password }}
+        HEADER_NAME: ${{ inputs.header-name }}
+        HEADER_VALUE: ${{ inputs.header-value }}
+        MAX_UNDECLARED: ${{ inputs.max-undeclared }}
+      run: node "${{ github.action_path }}/scan-gate.mjs"
