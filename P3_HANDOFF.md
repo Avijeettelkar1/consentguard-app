@@ -1,9 +1,54 @@
 # P3 HANDOFF — TCF Consent-String Decoding + Protocol Mismatch
 
 > **You are the agent building Pillar 3.** This file is self-contained — you do not need any
-> other file. Cross-pillar view is in `PILLARS.md` (optional).
+> other file. The **integrator** applies the shared scanner change and final wiring — see below.
+> Cross-pillar view is in `PILLARS.md` (optional).
 > ⚠️ This is the **highest-risk, highest-reward** pillar. Build the **fallback path first** (§4a):
 > it needs no scanner change and proves value on its own. The authoritative path (§4b) is a bonus.
+
+---
+
+## 🚦 AGENT — START HERE (this section wins over anything below it)
+
+**Your branch:** `p3-tcf`. Work only here.
+```bash
+git fetch origin
+git checkout p3-tcf             # already created for you
+git pull
+```
+
+**Files you MAY create/edit (your lane — nothing else):**
+- ✅ `backend/tcf.py`
+- ✅ `backend/test_tcf.py`
+
+**Files you must NOT touch:**
+- ❌ `backend/scanner.py` — the in-page TCF capture (§4b, "P0.3") is applied by the **integrator**,
+  not you. **Build the §4a fallback path** (decode `gdpr_consent` from the request URLs already in
+  `scan_data`) and **test against synthetic `scan_data`**. Do not edit the scanner.
+- ❌ `backend/agent.py`, `backend/main.py`, `backend/requirements.txt` — integrator adds `iab-tcf`
+  and any wiring.
+- ❌ `backend/analyzer.py`, `backend/semantic.py`, `backend/behavioral.py`, and every other file.
+
+**Your job, in order:**
+1. Build `backend/tcf.py` per the spec — **the fallback path (§4a) first** (no scanner needed), then
+   the mismatch logic. Keep the return-shape contract in §6.
+2. Write `backend/test_tcf.py` — feed **synthetic** `scan_data` (a decoded `tc_data` dict, or request
+   URLs carrying `gdpr_consent`); no browser needed. Acceptance cases in §9.
+3. Run `cd backend && python -m pytest test_tcf.py -q` → green. Then `MOCK=true pytest -q` → green.
+4. Commit + push to **your branch only**:
+   ```bash
+   git add backend/tcf.py backend/test_tcf.py
+   git commit -m "feat(p3): TCF consent-string decoding + protocol mismatch"
+   git push -u origin p3-tcf
+   ```
+5. Tell the integrator you're done. Do **not** merge into `avjeet-frontend`.
+
+**Paste THIS to your coding agent to start:**
+> "Read `P3_HANDOFF.md` top to bottom. Build `backend/tcf.py` — the §4a fallback path first (decode
+> `gdpr_consent` from request URLs; no scanner change), then the mismatch logic — and write
+> `backend/test_tcf.py` against synthetic scan_data. Do NOT edit scanner.py, agent.py, main.py, or
+> requirements.txt — the integrator handles those. Keep the §6 return shape exact. Make the §9 tests
+> pass, run `MOCK=true pytest -q`, then commit and push to the `p3-tcf` branch."
 
 ---
 
