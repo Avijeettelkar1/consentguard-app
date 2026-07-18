@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 daytona-sdk
 anthropic
 openai
@@ -7,5 +7,6 @@ tavily-python
 requests
 python-dotenv
 pyjwt
+playwright
 # Optional (cross-site memory graph). Heavy install - enable with COGNEE_ENABLED=true.
 # cognee

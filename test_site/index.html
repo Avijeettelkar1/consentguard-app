@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ShopNow — Great Deals Every Day</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; color: #212529; }
+
+  nav { background: #1a1a2e; color: white; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+  nav .logo { font-size: 1.4rem; font-weight: 800; color: #e94560; }
+  nav a { color: #ccc; text-decoration: none; font-size: 0.9rem; margin-left: 1rem; }
+  nav a:hover { color: white; }
+
+  .hero { background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; padding: 4rem 2rem; text-align: center; }
+  .hero h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.75rem; }
+  .hero p { font-size: 1.1rem; color: #aaa; margin-bottom: 1.5rem; }
+  .hero button { background: #e94560; color: white; border: none; padding: 0.85rem 2rem; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+
+  .products { max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  @media (max-width: 700px) { .products { grid-template-columns: 1fr; } }
+  .card { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .card img { width: 100%; height: 180px; object-fit: cover; background: #e9ecef; display: block; }
+  .card-body { padding: 1rem; }
+  .card-body h3 { font-size: 0.95rem; margin-bottom: 0.4rem; }
+  .card-body .price { font-size: 1.2rem; font-weight: 800; color: #e94560; }
+  .card-body button { width: 100%; margin-top: 0.75rem; background: #1a1a2e; color: white; border: none; padding: 0.6rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+
+  footer { text-align: center; padding: 2rem; color: #868e96; font-size: 0.85rem; margin-top: 2rem; border-top: 1px solid #dee2e6; }
+  footer a { color: #868e96; text-decoration: none; margin: 0 0.5rem; }
+  footer a:hover { color: #212529; }
+
+  /* ── Cookie Banner ── */
+  #cookie-banner {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;
+    background: #1a1a2e; color: white;
+    padding: 1.25rem 2rem; border-top: 3px solid #e94560;
+    display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  #cookie-banner p { font-size: 0.875rem; color: #ccc; flex: 1; min-width: 260px; }
+  #cookie-banner p a { color: #e94560; }
+  .banner-buttons { display: flex; gap: 0.75rem; flex-shrink: 0; }
+  .btn-accept { background: #e94560; color: white; border: none; padding: 0.6rem 1.25rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
+  .btn-reject { background: transparent; color: #ccc; border: 1px solid #444; padding: 0.6rem 1.25rem; border-radius: 6px; cursor: pointer; }
+  .btn-reject:hover { border-color: #ccc; color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">ShopNow</span>
+  <a href="#">Home</a>
+  <a href="#">Products</a>
+  <a href="#">Deals</a>
+  <a href="#">Contact</a>
+</nav>
+
+<div class="hero">
+  <h1>Great Deals, Every Day</h1>
+  <p>Discover thousands of products at unbeatable prices.</p>
+  <button>Shop Now</button>
+</div>
+
+<div class="products">
+  <div class="card">
+    <div style="height:180px;background:#dee2e6;display:flex;align-items:center;justify-content:center;color:#868e96;font-size:2rem">🎧</div>
+    <div class="card-body"><h3>Wireless Headphones Pro</h3><div class="price">$49.99</div><button>Add to Cart</button></div>
+  </div>
+  <div class="card">
+    <div style="height:180px;background:#dee2e6;display:flex;align-items:center;justify-content:center;color:#868e96;font-size:2rem">📱</div>
+    <div class="card-body"><h3>Smart Phone Stand</h3><div class="price">$12.99</div><button>Add to Cart</button></div>
+  </div>
+  <div class="card">
+    <div style="height:180px;background:#dee2e6;display:flex;align-items:center;justify-content:center;color:#868e96;font-size:2rem">💻</div>
+    <div class="card-body"><h3>Laptop Sleeve 15"</h3><div class="price">$24.99</div><button>Add to Cart</button></div>
+  </div>
+</div>
+
+<footer>
+  <p>© 2024 ShopNow Inc. All rights reserved.</p>
+  <p style="margin-top:0.5rem">
+    <a href="/privacy.html">Privacy Policy</a>
+    <a href="/privacy.html">Cookie Policy</a>
+    <a href="#">Terms of Service</a>
+  </p>
+</footer>
+
+<!-- Cookie Banner -->
+<div id="cookie-banner">
+  <p>
+    We use cookies to improve your experience and show you relevant ads.
+    See our <a href="/privacy.html">Cookie Policy</a> for details.
+  </p>
+  <div class="banner-buttons">
+    <button class="btn-reject" id="rejectBtn" onclick="rejectCookies()">Reject All</button>
+    <button class="btn-accept" onclick="acceptCookies()">Accept All</button>
+  </div>
+</div>
+
+<!--
+  ══════════════════════════════════════════════════════════
+  INTENTIONAL GDPR VIOLATIONS — these tracker scripts fire
+  on page load regardless of what the user clicks.
+  ConsentGuard should catch all of these after "Reject All".
+  ══════════════════════════════════════════════════════════
+-->
+
+<!-- Google Analytics — declared in cookie policy (compliant) -->
+<script async src="https://www.google-analytics.com/analytics.js"></script>
+
+<!-- Facebook Pixel — NOT declared in cookie policy (violation) -->
+<script async src="https://connect.facebook.net/en_US/fbevents.js"></script>
+
+<!-- Microsoft/Bing Ads — NOT declared (violation) -->
+<img src="https://bat.bing.com/action/0?ti=TESTID&Ver=2" height="0" width="0" style="display:none" />
+
+<!-- Twitter/X Pixel — NOT declared (violation) -->
+<script async src="https://static.ads-twitter.com/uwt.js"></script>
+
+<!-- Segment analytics — NOT declared (violation) -->
+<script async src="https://cdn.segment.com/analytics.js/v1/TESTKEY/analytics.min.js"></script>
+
+<!-- Hotjar — NOT declared (violation) -->
+<script>
+  (function(h,o,t,j,a,r){
+    h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
+    h._hjSettings={hjid:0,hjsv:6};
+    a=o.getElementsByTagName('head')[0];
+    r=o.createElement('script');r.async=1;
+    r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+    a.appendChild(r);
+  })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
+</script>
+
+<script>
+function rejectCookies() {
+  // BUG: We hide the banner but DON'T actually stop the trackers above.
+  // This is the GDPR violation — trackers already loaded on page open.
+  document.getElementById("cookie-banner").style.display = "none";
+  localStorage.setItem("consent", "rejected");
+}
+
+function acceptCookies() {
+  document.getElementById("cookie-banner").style.display = "none";
+  localStorage.setItem("consent", "accepted");
+}
+
+// Don't show banner if already decided
+if (localStorage.getItem("consent")) {
+  document.getElementById("cookie-banner").style.display = "none";
+}
+</script>
+
+</body>
+</html>
