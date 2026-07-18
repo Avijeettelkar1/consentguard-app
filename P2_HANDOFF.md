@@ -1,7 +1,54 @@
 # P2 HANDOFF — Semantic Policy Grounding (Embeddings + Cognee)
 
 > **You are the agent building Pillar 2.** This file is self-contained — you do not need any
-> other file. Cross-pillar view is in `PILLARS.md` (optional).
+> other file. The **integrator** applies the shared scanner change and final wiring — see below.
+> Cross-pillar view is in `PILLARS.md` (optional).
+
+---
+
+## 🚦 AGENT — START HERE (this section wins over anything below it)
+
+**Your branch:** `p2-semantic`. Work only here.
+```bash
+git fetch origin
+git checkout p2-semantic        # already created for you
+git pull
+```
+
+**Files you MAY create/edit (your lane — nothing else):**
+- ✅ `backend/semantic.py`
+- ✅ `backend/test_semantic.py`
+- ✅ `backend/analyzer.py`  (only you touch this — add your embeddings path here)
+
+**Files you must NOT touch:**
+- ❌ `backend/scanner.py` — the policy-discovery fix (§4a, "P0.1") is applied by the **integrator**,
+  not you. **Build and test against a synthetic `policy_text` string** (the spec shows how). Do not
+  edit the scanner.
+- ❌ `backend/agent.py`, `backend/main.py`, `backend/requirements.txt` — integrator adds `numpy`
+  (+ optional cognee) and any wiring.
+- ❌ `backend/behavioral.py`, `backend/tcf.py`, and every other file.
+
+**Your job, in order:**
+1. Build `backend/semantic.py` per the spec. **Keep the return-shape contract in §6** —
+   `violations`/`undeclared`/`declared` must stay populated or you break the rest of the app.
+2. Add your embeddings path into `backend/analyzer.py` exactly as in §7 (guarded; falls back cleanly).
+3. Write `backend/test_semantic.py` — **mock the OpenAI embeddings client** so tests run offline and
+   deterministically (acceptance cases in §11).
+4. Run `cd backend && python -m pytest test_semantic.py -q` → green. Then `MOCK=true pytest -q` → green.
+5. Commit + push to **your branch only**:
+   ```bash
+   git add backend/semantic.py backend/test_semantic.py backend/analyzer.py
+   git commit -m "feat(p2): semantic policy grounding (embeddings + cognee)"
+   git push -u origin p2-semantic
+   ```
+6. Tell the integrator you're done. Do **not** merge into `avjeet-frontend`.
+
+**Paste THIS to your coding agent to start:**
+> "Read `P2_HANDOFF.md` top to bottom. Build `backend/semantic.py`, add the embeddings path to
+> `backend/analyzer.py` (§7), and write `backend/test_semantic.py` with the OpenAI embeddings client
+> MOCKED. Do NOT edit scanner.py, agent.py, main.py, or requirements.txt — the integrator handles
+> those. Test against a synthetic policy_text. Keep the §6 return shape exact. Make the §11 tests pass,
+> run `MOCK=true pytest -q`, then commit and push to the `p2-semantic` branch."
 
 ---
 

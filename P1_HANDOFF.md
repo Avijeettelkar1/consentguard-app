@@ -1,8 +1,54 @@
 # P1 HANDOFF — Behavioral Tracker Detection (Identity Syncing)
 
 > **You are the agent building Pillar 1.** This file is self-contained — you do not need any
-> other file to do your job. Build the module, wire it in, test it, done.
+> other file to do your job. Build the module, test it, push to your branch. The **integrator**
+> wires it into the app — you do NOT wire it yourself.
 > Cross-pillar view lives in `PILLARS.md` (optional reading).
+
+---
+
+## 🚦 AGENT — START HERE (this section wins over anything below it)
+
+**Your branch:** `p1-behavioral`. Work only here.
+```bash
+git fetch origin
+git checkout p1-behavioral      # already created for you
+git pull
+```
+
+**Files you MAY create/edit (your lane — nothing else):**
+- ✅ `backend/behavioral.py`
+- ✅ `backend/test_behavioral.py`
+
+**Files you must NOT touch (the integrator or another pillar owns them):**
+- ❌ `backend/agent.py`, `backend/main.py`, `backend/scanner.py`, `backend/analyzer.py`, `backend/requirements.txt`
+- ❌ `backend/semantic.py`, `backend/tcf.py`, and every other existing file
+
+The integrator will wire your module into `agent.py`/`main.py` and add `tldextract` to
+`requirements.txt` at the end. **Do not do that yourself** — it causes merge conflicts.
+Your module is pure Python and fully testable with synthetic data — you don't need the browser or the
+rest of the app.
+
+**Your job, in order:**
+1. Build `backend/behavioral.py` exactly per the spec below. **The return shape in §6 is a contract —
+   do not change it** (the frontend and integrator depend on it).
+2. Write `backend/test_behavioral.py` covering the acceptance tests in §11.
+3. Run `cd backend && python -m pytest test_behavioral.py -q` → all green.
+4. Confirm you broke nothing else: `MOCK=true python -m pytest -q`.
+5. Commit and push to **your branch only**:
+   ```bash
+   git add backend/behavioral.py backend/test_behavioral.py
+   git commit -m "feat(p1): behavioral identity-sync detection"
+   git push -u origin p1-behavioral
+   ```
+6. Tell the integrator you're done. Do **not** merge into `avjeet-frontend`.
+
+**Paste THIS to your coding agent to start:**
+> "Read `P1_HANDOFF.md` top to bottom. Build only `backend/behavioral.py` and
+> `backend/test_behavioral.py`, exactly per the spec. Do NOT edit any other file (not agent.py,
+> main.py, scanner.py, analyzer.py, or requirements.txt). Keep the §6 return shape exact. Make the
+> §11 acceptance tests pass, run `MOCK=true pytest -q` to confirm nothing broke, then commit and push
+> to the `p1-behavioral` branch."
 
 ---
 
