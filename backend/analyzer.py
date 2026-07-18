@@ -60,14 +60,85 @@ def analyze_violations(
     if not violations:
         return {"violations": [], "undeclared": [], "declared": []}
 
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
-    if api_key:
+    # Provider order. OpenAI is the hackathon partner technology, so we prefer it
+    # when a key is present; Claude stays as a fallback; the rule engine is last.
+    provider = os.getenv("LLM_PROVIDER", "auto").strip().lower()
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+
+    if provider in ("auto", "openai") and openai_key:
         try:
-            return _analyze_with_claude(api_key, violations, policy_text)
+            return _analyze_with_openai(openai_key, violations, policy_text)
+        except Exception:
+            pass
+
+    if provider in ("auto", "claude", "anthropic") and anthropic_key:
+        try:
+            return _analyze_with_claude(anthropic_key, violations, policy_text)
         except Exception:
             pass
 
     return _analyze_locally(violations, policy_text, page_html)
+
+
+def _analyze_with_openai(api_key: str, violations: list[dict], policy_text: str) -> dict:
+    """GDPR verdict via OpenAI (partner tech). Returns the same shape as the other
+    paths, plus a first-person ``reasoning`` line per tracker that powers the
+    'AI auditor thinking out loud' demo moment in Reject-All Radar."""
+    from openai import OpenAI
+
+    tracker_list = "\n".join(
+        f"- {v['domain']} ({v['category']}): {v['data_collected']}"
+        for v in violations
+    )
+
+    prompt = f"""You are a GDPR compliance auditor reviewing a website.
+
+The site's cookie banner was set to "Reject All". Despite that, these third-party
+trackers still fired network requests:
+
+{tracker_list}
+
+The site's cookie policy text (may be partial):
+\"\"\"
+{policy_text[:4000] if policy_text else "(not available)"}
+\"\"\"
+
+For EACH tracker, decide whether it is explicitly declared in the cookie policy.
+Also write ONE short first-person "auditor thinking out loud" sentence for each,
+e.g. "The policy names Google Analytics, but connect.facebook.net (Meta Pixel)
+fired after Reject and is nowhere in the policy - that's undeclared."
+
+Return ONLY valid JSON in this exact shape:
+{{
+  "violations": [
+    {{
+      "domain": "example.com",
+      "category": "advertising",
+      "data_collected": "...",
+      "declared": false,
+      "violation_reason": "Fires after reject and is not listed in the policy",
+      "reasoning": "one first-person sentence explaining the verdict"
+    }}
+  ]
+}}"""
+
+    client = OpenAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+        max_tokens=2000,
+        temperature=0.2,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": "You are a precise GDPR compliance auditor. Output only valid JSON."},
+            {"role": "user", "content": prompt},
+        ],
+    )
+
+    raw = (resp.choices[0].message.content or "").strip()
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    parsed = json.loads(match.group()) if match else {"violations": []}
+    return _split_declared(parsed.get("violations", []))
 
 
 def _analyze_with_claude(api_key: str, violations: list[dict], policy_text: str) -> dict:

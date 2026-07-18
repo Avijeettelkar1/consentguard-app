@@ -29,6 +29,7 @@ from auth import router as auth_router, init_db  # noqa: E402
 from scans import router as scans_router, init_db as init_scans_db  # noqa: E402
 from watch import router as watch_router, init_db as init_watch_db, start_scheduler  # noqa: E402
 from notify import router as notify_router, init_db as init_notify_db  # noqa: E402
+from agent import router as raid_router  # noqa: E402  Reject-All Radar (industry raid agent)
 
 init_db()
 init_scans_db()
@@ -38,6 +39,7 @@ app.include_router(auth_router)
 app.include_router(scans_router)
 app.include_router(watch_router)
 app.include_router(notify_router)
+app.include_router(raid_router)
 
 
 class ScanRequest(BaseModel):
